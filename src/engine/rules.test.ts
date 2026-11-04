@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyMove, createGame, isLegalMove, legalMoves, oppositePit, seedsOnSide } from './rules'
+import { applyMove, createGame, isLegalMove, legalMoves, oppositePit, stonesOnSide } from './rules'
 import { GameState, SOUTH_STORE } from './types'
 
 describe('createGame', () => {
@@ -17,14 +17,14 @@ describe('createGame', () => {
   it('supports Kalah(6,4)', () => {
     const s = createGame(4)
     expect(s.board[0]).toBe(4)
-    expect(seedsOnSide(s.board, 0)).toBe(24)
+    expect(stonesOnSide(s.board, 0)).toBe(24)
   })
 })
 
 describe('applyMove', () => {
   it('sows counter-clockwise and grants an extra turn when landing in own store', () => {
     const s = createGame(6)
-    const { state, events } = applyMove(s, 0) // 6 seeds: pits 1-5 then store
+    const { state, events } = applyMove(s, 0) // 6 stones: pits 1-5 then store
     expect(state.board[0]).toBe(0)
     expect(state.board.slice(1, 6)).toEqual([7, 7, 7, 7, 7])
     expect(state.board[SOUTH_STORE]).toBe(1)
@@ -33,7 +33,7 @@ describe('applyMove', () => {
     expect(events[0]).toMatchObject({ type: 'sow', from: 0, path: [1, 2, 3, 4, 5, 6] })
   })
 
-  it('passes the turn when the last seed does not land in own store', () => {
+  it('passes the turn when the last stone does not land in own store', () => {
     const s = createGame(6)
     const { state, events } = applyMove(s, 5) // lands in north pit 11
     expect(state.board[5]).toBe(0)
@@ -47,22 +47,22 @@ describe('applyMove', () => {
     const s = createGame(6)
     s.board[5] = 9 // path: 6,7,8,9,10,11,12, skip 13 -> 0,1
     const { state } = applyMove(s, 5)
-    expect(state.board[13]).toBe(0) // opponent store never receives seeds
+    expect(state.board[13]).toBe(0) // opponent store never receives stones
     expect(state.board[SOUTH_STORE]).toBe(1)
     expect(state.board[0]).toBe(7)
     expect(state.board[1]).toBe(7)
-    expect(state.currentPlayer).toBe(1) // last seed in pit 1 (6+1=7, no capture)
+    expect(state.currentPlayer).toBe(1) // last stone in pit 1 (6+1=7, no capture)
   })
 
-  it('captures when the last seed lands in an empty own pit opposite a non-empty pit', () => {
+  it('captures when the last stone lands in an empty own pit opposite a non-empty pit', () => {
     const s = createGame(6)
     s.board[3] = 1 // south sows from pit 3
-    s.board[4] = 0 // empty own pit — last seed lands here
-    s.board[oppositePit(4)] = 3 // pit 8 has 3 seeds
+    s.board[4] = 0 // empty own pit — last stone lands here
+    s.board[oppositePit(4)] = 3 // pit 8 has 3 stones
     const { state, events } = applyMove(s, 3)
     expect(state.board[4]).toBe(0)
     expect(state.board[8]).toBe(0)
-    expect(state.board[SOUTH_STORE]).toBe(4) // last seed + opposite seeds
+    expect(state.board[SOUTH_STORE]).toBe(4) // last stone + opposite stones
     expect(events.find((e) => e.type === 'capture')).toMatchObject({
       pit: 4,
       opposite: 8,
@@ -82,7 +82,7 @@ describe('applyMove', () => {
     expect(events.some((e) => e.type === 'capture')).toBe(false)
   })
 
-  it('does not capture when the last seed lands on the opponent side', () => {
+  it('does not capture when the last stone lands on the opponent side', () => {
     const s = createGame(6)
     s.board[5] = 8 // path: 6,7,8,9,10,11,12, skip 13 -> 0 ; last = 0 (south pit, 6+1=7, no capture anyway)
     const { state, events } = applyMove(s, 5)
@@ -90,17 +90,17 @@ describe('applyMove', () => {
     expect(events.some((e) => e.type === 'capture')).toBe(false)
   })
 
-  it('handles multi-lap sowing (more seeds than board cells)', () => {
+  it('handles multi-lap sowing (more stones than board cells)', () => {
     const s = createGame(6)
     s.board[0] = 16
     s.board[1] = 0
     const { state, events } = applyMove(s, 0)
     const sow = events[0]
     expect(sow.type === 'sow' && sow.path).toHaveLength(16)
-    expect(state.board[1]).toBe(2) // received seeds on steps 1 and 14
+    expect(state.board[1]).toBe(2) // received stones on steps 1 and 14
     expect(state.board[SOUTH_STORE]).toBe(1) // own store hit once (step 6)
     expect(state.board[13]).toBe(0) // opponent store skipped
-    expect(state.currentPlayer).toBe(1) // last seed in pit 3 (6+2=8, not a capture)
+    expect(state.currentPlayer).toBe(1) // last stone in pit 3 (6+2=8, not a capture)
   })
 
   it('throws on illegal moves', () => {
@@ -112,8 +112,8 @@ describe('applyMove', () => {
     expect(isLegalMove(s, 0)).toBe(true)
   })
 
-  it('ends the game and sweeps remaining seeds when a side empties', () => {
-    // South has a single seed in pit 5 -> lands in own store, south side empties.
+  it('ends the game and sweeps remaining stones when a side empties', () => {
+    // South has a single stone in pit 5 -> lands in own store, south side empties.
     const s: GameState = {
       board: [0, 0, 0, 0, 0, 1, 20, 1, 1, 1, 1, 1, 1, 10],
       currentPlayer: 0,
@@ -124,8 +124,8 @@ describe('applyMove', () => {
     const { state, events } = applyMove(s, 5)
     expect(state.status).toBe('finished')
     expect(state.board[SOUTH_STORE]).toBe(21)
-    expect(state.board[13]).toBe(16) // north swept its 6 remaining seeds
-    expect(seedsOnSide(state.board, 1)).toBe(0)
+    expect(state.board[13]).toBe(16) // north swept its 6 remaining stones
+    expect(stonesOnSide(state.board, 1)).toBe(0)
     expect(state.winner).toBe(0) // 21 vs 16
     expect(events.some((e) => e.type === 'sweep' && e.side === 1 && e.count === 6)).toBe(true)
     expect(events.some((e) => e.type === 'game-over')).toBe(true)

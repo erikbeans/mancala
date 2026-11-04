@@ -28,8 +28,8 @@ export interface Controller {
   restart: () => void
 }
 
-export function useGame(mode: Mode, difficulty: Difficulty, seeds: 4 | 6): Controller {
-  const [state, setState] = useState<GameState>(() => createGame(seeds))
+export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Controller {
+  const [state, setState] = useState<GameState>(() => createGame(stones))
   const [lastEvents, setLastEvents] = useState<GameEvent[]>([])
   const [moves, setMoves] = useState<MoveEntry[]>([])
   const [history, setHistory] = useState<GameState[]>([])
@@ -105,12 +105,12 @@ export function useGame(mode: Mode, difficulty: Difficulty, seeds: 4 | 6): Contr
   }, [mode, humanPlayer])
 
   const restart = useCallback(() => {
-    setState(createGame(seeds))
+    setState(createGame(stones))
     setHistory([])
     setMoves([])
     setLastEvents([])
     setThinking(false)
-  }, [seeds])
+  }, [stones])
 
   const isHumanTurn =
     state.status === 'playing' && (mode === 'hotseat' || state.currentPlayer === humanPlayer)

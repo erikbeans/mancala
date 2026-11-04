@@ -7,8 +7,8 @@ import {
   Player,
 } from './types'
 
-export function createGame(seedsPerPit = 6): GameState {
-  const board = new Array<number>(BOARD_SIZE).fill(seedsPerPit)
+export function createGame(stonesPerPit = 6): GameState {
+  const board = new Array<number>(BOARD_SIZE).fill(stonesPerPit)
   board[SOUTH_STORE] = 0
   board[NORTH_STORE] = 0
   return { board, currentPlayer: 0, status: 'playing', winner: null, moveCount: 0 }
@@ -44,16 +44,16 @@ export function isLegalMove(state: GameState, pit: number): boolean {
   return legalMoves(state).includes(pit)
 }
 
-export function seedsOnSide(board: number[], player: Player): number {
+export function stonesOnSide(board: number[], player: Player): number {
   return pitsOf(player).reduce((sum, pit) => sum + board[pit], 0)
 }
 
 /**
  * Apply a move for the current player. Throws on illegal moves.
  * Implements: sowing counter-clockwise (own store included, opponent's skipped),
- * extra turn when the last seed lands in the own store, capture when the last
- * seed lands in an empty own pit with a non-empty opposite pit, and the
- * end-of-game sweep when either side runs out of seeds.
+ * extra turn when the last stone lands in the own store, capture when the last
+ * stone lands in an empty own pit with a non-empty opposite pit, and the
+ * end-of-game sweep when either side runs out of stones.
  */
 export function applyMove(state: GameState, pit: number): MoveResult {
   if (!isLegalMove(state, pit)) {
@@ -65,12 +65,12 @@ export function applyMove(state: GameState, pit: number): MoveResult {
   const ownStore = storeOf(player)
   const oppStore = storeOf(opponentOf(player))
 
-  const seeds = board[pit]
+  const stones = board[pit]
   board[pit] = 0
 
   const path: number[] = []
   let pos = pit
-  for (let i = 0; i < seeds; i++) {
+  for (let i = 0; i < stones; i++) {
     pos = (pos + 1) % BOARD_SIZE
     if (pos === oppStore) pos = (pos + 1) % BOARD_SIZE // skip opponent's store
     board[pos]++
@@ -85,7 +85,7 @@ export function applyMove(state: GameState, pit: number): MoveResult {
     // Extra turn: same player moves again (chains allowed).
     events.push({ type: 'extra-turn', store: ownStore })
   } else {
-    // board[last] === 1 means the pit was empty just before the last seed
+    // board[last] === 1 means the pit was empty just before the last stone
     // landed (correct even for multi-lap sows).
     if (isPitOf(last, player) && board[last] === 1) {
       const opp = oppositePit(last)
@@ -103,18 +103,18 @@ export function applyMove(state: GameState, pit: number): MoveResult {
   let status = state.status
   let winner = state.winner
 
-  const southEmpty = seedsOnSide(board, 0) === 0
-  const northEmpty = seedsOnSide(board, 1) === 0
+  const southEmpty = stonesOnSide(board, 0) === 0
+  const northEmpty = stonesOnSide(board, 1) === 0
   if (southEmpty || northEmpty) {
     status = 'finished'
-    // The player whose side is NOT empty sweeps their remaining seeds.
+    // The player whose side is NOT empty sweeps their remaining stones.
     if (southEmpty && !northEmpty) {
-      const count = seedsOnSide(board, 1)
+      const count = stonesOnSide(board, 1)
       board[NORTH_STORE] += count
       for (const p of pitsOf(1)) board[p] = 0
       events.push({ type: 'sweep', side: 1, store: NORTH_STORE, count })
     } else if (northEmpty && !southEmpty) {
-      const count = seedsOnSide(board, 0)
+      const count = stonesOnSide(board, 0)
       board[SOUTH_STORE] += count
       for (const p of pitsOf(0)) board[p] = 0
       events.push({ type: 'sweep', side: 0, store: SOUTH_STORE, count })

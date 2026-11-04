@@ -1,4 +1,4 @@
-import { applyMove, legalMoves, pitsOf, seedsOnSide, storeOf } from './rules'
+import { applyMove, legalMoves, pitsOf, stonesOnSide, storeOf } from './rules'
 import { GameState } from './types'
 
 const WIN_SCORE = 100_000
@@ -21,7 +21,7 @@ export function evaluate(state: GameState, player: 0 | 1, depth = 0): number {
   }
   const opp = (1 - player) as 0 | 1
   const storeDiff = state.board[storeOf(player)] - state.board[storeOf(opp)]
-  const sideDiff = seedsOnSide(state.board, player) - seedsOnSide(state.board, opp)
+  const sideDiff = stonesOnSide(state.board, player) - stonesOnSide(state.board, opp)
   const mobDiff =
     pitsOf(player).filter((p) => state.board[p] > 0).length -
     pitsOf(opp).filter((p) => state.board[p] > 0).length

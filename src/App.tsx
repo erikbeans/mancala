@@ -10,19 +10,19 @@ type Screen = 'menu' | 'game'
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [showRules, setShowRules] = useState(false)
-  const [config, setConfig] = useState<{ mode: Mode; difficulty: Difficulty; seeds: 4 | 6 }>({
+  const [config, setConfig] = useState<{ mode: Mode; difficulty: Difficulty; stones: 4 | 6 }>({
     mode: 'ai',
     difficulty: 'medium',
-    seeds: 6,
+    stones: 6,
   })
-  const ctl = useGame(config.mode, config.difficulty, config.seeds)
+  const ctl = useGame(config.mode, config.difficulty, config.stones)
 
   return (
     <main className="app">
       {screen === 'menu' ? (
         <Menu
-          onStart={(mode, difficulty, seeds) => {
-            setConfig({ mode, difficulty, seeds })
+          onStart={(mode, difficulty, stones) => {
+            setConfig({ mode, difficulty, stones })
             setScreen('game')
             ctl.restart()
           }}

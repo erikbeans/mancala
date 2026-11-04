@@ -2,7 +2,7 @@ import type { Difficulty } from '../../engine/ai'
 import type { Mode } from '../hooks/useGame'
 
 interface MenuProps {
-  onStart: (mode: Mode, difficulty: Difficulty, seeds: 4 | 6) => void
+  onStart: (mode: Mode, difficulty: Difficulty, stones: 4 | 6) => void
   onRules: () => void
 }
 
@@ -10,7 +10,7 @@ export default function Menu({ onStart, onRules }: MenuProps) {
   return (
     <div className="menu">
       <h1 className="title">Mancala</h1>
-      <p className="subtitle">The ancient game of count and capture — Kalah rules</p>
+      <p className="subtitle">The ancient game of count and capture</p>
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -18,7 +18,7 @@ export default function Menu({ onStart, onRules }: MenuProps) {
           onStart(
             f.get('mode') as Mode,
             f.get('difficulty') as Difficulty,
-            Number(f.get('seeds')) as 4 | 6,
+            Number(f.get('stones')) as 4 | 6,
           )
         }}
       >
@@ -44,12 +44,12 @@ export default function Menu({ onStart, onRules }: MenuProps) {
           </label>
         </fieldset>
         <fieldset>
-          <legend>Variant</legend>
+          <legend>Stones per pit</legend>
           <label>
-            <input type="radio" name="seeds" value="6" defaultChecked /> Kalah(6,6) — 6 seeds
+            <input type="radio" name="stones" value="6" defaultChecked /> 6 stones
           </label>
           <label>
-            <input type="radio" name="seeds" value="4" /> Kalah(6,4) — 4 seeds
+            <input type="radio" name="stones" value="4" /> 4 stones
           </label>
         </fieldset>
         <div className="menu-actions">

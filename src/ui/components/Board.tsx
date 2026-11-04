@@ -22,9 +22,9 @@ export function pitCenter(index: number): { x: number; y: number } {
   return { x: 62, y: 220 } // 13
 }
 
-const SEED_COLORS = ['#e8c47a', '#d9a45b', '#c98a4b', '#b5763f', '#e5d3a1', '#cf9455']
+const STONE_COLORS = ['#e8c47a', '#d9a45b', '#c98a4b', '#b5763f', '#e5d3a1', '#cf9455']
 
-function seedOffset(n: number, i: number): { dx: number; dy: number } {
+function stoneOffset(n: number, i: number): { dx: number; dy: number } {
   // Deterministic pseudo-random scatter inside the pit.
   const cols = 4
   const col = i % cols
@@ -70,8 +70,8 @@ export default function Board({ ctl, onPit }: BoardProps) {
       captured ? 'captured' : '',
     ].join(' ')
     const label = isStore
-      ? `Store for ${pit === 6 ? 'you' : 'opponent'}, ${count} seeds`
-      : `Pit ${pit + 1}, ${count} seeds${playable ? ', playable' : ''}`
+      ? `Store for ${pit === 6 ? 'you' : 'opponent'}, ${count} stones`
+      : `Pit ${pit + 1}, ${count} stones${playable ? ', playable' : ''}`
     const shown = Math.min(count, 12)
     return (
       <g
@@ -90,15 +90,15 @@ export default function Board({ ctl, onPit }: BoardProps) {
           <ellipse cx={x} cy={y} rx={PIT_RX} ry={PIT_RY} className="pit-shape" />
         )}
         {Array.from({ length: shown }, (_, i) => {
-          const { dx, dy } = seedOffset(count, i)
+          const { dx, dy } = stoneOffset(count, i)
           return (
             <circle
               key={i}
               cx={x + dx}
               cy={y + dy}
               r={11}
-              className="seed"
-              fill={SEED_COLORS[(pit * 7 + i * 3 + count) % SEED_COLORS.length]}
+              className="stone"
+              fill={STONE_COLORS[(pit * 7 + i * 3 + count) % STONE_COLORS.length]}
             />
           )
         })}
@@ -143,7 +143,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
       {pits.map(renderPit)}
 
-      {/* Sow animation: a seed traveling along the path of the last move. */}
+      {/* Sow animation: a stone traveling along the path of the last move. */}
       {sowPath.map((p, i) => (
         <circle
           key={`${state.moveCount}-${p.pit}-${i}`}

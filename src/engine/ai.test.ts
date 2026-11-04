@@ -13,7 +13,7 @@ describe('ai', () => {
     const s = createGame(6)
     s.board[3] = 1
     s.board[4] = 0
-    s.board[oppositePit(4)] = 3 // capture worth 4 seeds
+    s.board[oppositePit(4)] = 3 // capture worth 4 stones
     const move = bestMove(s, 'medium')
     expect(move).toBe(3)
   })
@@ -29,7 +29,7 @@ describe('ai', () => {
     expect(bestMove(createGame(6), 'medium')).toBe(0)
   })
 
-  it('evaluate is symmetric-ish and favors more seeds in store', () => {
+  it('evaluate is symmetric-ish and favors more stones in store', () => {
     const s = createGame(6)
     s.board[6] = 5
     expect(evaluate(s, 0)).toBeGreaterThan(evaluate(s, 1))
@@ -46,6 +46,6 @@ describe('ai', () => {
     expect(state.status).toBe('finished')
     expect(guard).toBeLessThan(500)
     const total = state.board.reduce((a, b) => a + b, 0)
-    expect(total).toBe(48) // all seeds end up in stores
+    expect(total).toBe(48) // all stones end up in stores
   })
 })

@@ -209,7 +209,7 @@ button.primary:hover {
 .pit.captured .pit-shape {
   animation: capture-flash 0.9s ease;
 }
-.seed {
+.stone {
   stroke: rgba(0, 0, 0, 0.35);
   stroke-width: 1;
 }

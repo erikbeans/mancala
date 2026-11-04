@@ -4,25 +4,25 @@ Status: **Phases 1–5 done (2026-11-03):** engine + AI + full UI working and ve
 
 ## Decisions (locked in)
 
-- **Variant:** Kalah — standard rules, Kalah(6,6) as default (6 pits/side, 6 seeds/pit), with Kalah(6,4) as an option.
+- **Variant:** Kalah rules — default 6 stones per pit, with 4 stones as an option (UI labels: "6 stones" / "4 stones"; terminology everywhere is "stones", never "seeds").
 - **Modes:** vs AI (multiple difficulties) + local hotseat 2-player at launch; **online multiplayer as a later phase** (needs a WebSocket backend — Supabase Realtime or a small Node ws server).
 - **Stack:** Vite + React + TypeScript. Vitest for tests. Deploy statically (GitHub Pages / Vercel / Netlify).
-- **Aesthetic:** polished wooden board, animated seed sowing, optional sound, light/dark theme, responsive + touch-friendly, ARIA accessible.
+- **Aesthetic:** polished wooden board, animated stone sowing, optional sound, light/dark theme, responsive + touch-friendly, ARIA accessible.
 
 ## Research findings (sources: Wikipedia — Mancala, Kalah, Oware)
 
 ### Kalah rules to implement
-- Board: 2 rows × 6 pits + 1 store ("end zone") per side. 6 seeds per pit at start (Kalah(6,6)); 4 seeds for Kalah(6,4).
+- Board: 2 rows × 6 pits + 1 store ("end zone") per side. 6 stones per pit at start (Kalah(6,6)); 4 stones for Kalah(6,4).
 - Bin indexing convention (from Wikipedia analysis section): South pits 0–5, South store 6, North pits 7–12, North store 13. Sowing counter-clockwise: 0→1→…→6→7→…→13→0.
-- A turn: pick up all seeds from one of your own non-empty pits; sow one seed into each subsequent pit counter-clockwise, **including your own store, skipping the opponent's store**.
-- **Extra turn:** if the last seed lands in your own store, you move again (chains allowed, no limit).
-- **Capture:** if the last seed lands in an *empty* pit on your own side and the opposite pit has seeds, you capture the last seed + all seeds in the opposite pit into your store.
-- **Game end:** when one player's pits are all empty, the other player sweeps all remaining seeds on their side into their store. Most seeds in store wins; 36–36 is a draw (72 seeds total in Kalah(6,6)).
+- A turn: pick up all stones from one of your own non-empty pits; sow one stone into each subsequent pit counter-clockwise, **including your own store, skipping the opponent's store**.
+- **Extra turn:** if the last stone lands in your own store, you move again (chains allowed, no limit).
+- **Capture:** if the last stone lands in an *empty* pit on your own side and the opposite pit has stones, you capture the last stone + all stones in the opposite pit into your store.
+- **Game end:** when one player's pits are all empty, the other player sweeps all remaining stones on their side into their store. Most stones in store wins; 36–36 is a draw (72 stones total in Kalah(6,6)).
 - Note: Kalah(6,4) is solved (first player wins by 8 with perfect play) — fine for casual play; the pie rule is unnecessary here since we have an AI to beat, not a solved-game problem.
 
 ### AI approach
 - Minimax with alpha-beta pruning + iterative deepening; branching factor ≤ 6, so depth 6–10 is cheap.
-- Evaluation: store difference, seeds on own side, mobility (number of legal moves), capture/extra-turn potential. Difficulty = search depth (Easy ~2, Medium ~6, Hard ~10+).
+- Evaluation: store difference, stones on own side, mobility (number of legal moves), capture/extra-turn potential. Difficulty = search depth (Easy ~2, Medium ~6, Hard ~10+).
 - Run search in a **Web Worker** so the UI never blocks; show a "thinking" indicator.
 
 ## Architecture
@@ -43,9 +43,9 @@ mancala/
 │   ├── ui/
 │   │   ├── App.tsx         — screen routing: menu / game / rules
 │   │   ├── components/
-│   │   │   ├── Board.tsx       — SVG board: pits, stores, seeds, highlights
+│   │   │   ├── Board.tsx       — SVG board: pits, stores, stones, highlights
 │   │   │   ├── Pit.tsx         — single pit, click + keyboard focusable (ARIA button)
-│   │   │   ├── Seed.tsx        — animated seed (FLIP-style animation via Web Animations API)
+│   │   │   ├── Stone.tsx        — animated stone (FLIP-style animation via Web Animations API)
 │   │   │   ├── ScoreBar.tsx    — stores/scores, turn indicator, "extra turn" badge
 │   │   │   ├── MoveLog.tsx
 │   │   │   ├── GameMenu.tsx    — mode select (vs AI / hotseat), difficulty, variant, new game, undo, rules
@@ -56,7 +56,7 @@ mancala/
 │   │   ├── styles/         — CSS modules or plain CSS; wooden texture via CSS gradients/SVG, theme variables
 │   │   └── main.tsx
 │   └── test/               — Vitest: engine rules (Wikipedia worked examples), AI sanity (takes winning move, avoids losing one)
-└── public/                 — favicon, PWA manifest, seed/board SVG assets, sounds (optional)
+└── public/                 — favicon, PWA manifest, stone/board SVG assets, sounds (optional)
 ```
 
 Key design rule: **the engine never imports React or DOM** — the same engine runs in the main thread (hotseat), in the worker (AI), in tests, and later on the server for multiplayer validation.
@@ -66,7 +66,7 @@ Key design rule: **the engine never imports React or DOM** — the same engine r
 1. **Scaffold** — `npm create vite` (react-ts), add Vitest, ESLint/Prettier, git init, base CSS + theme variables.
 2. **Engine** — types, rules (sow/capture/extra-turn/endgame/winner), serialize. Unit tests from the Wikipedia example turns + edge cases (multi-lap sowing, capture chains, endgame sweep, draw).
 3. **AI** — minimax/alpha-beta + eval + difficulties + worker. Tests: picks proven winning first move in Kalah(6,4) (bin 3-6 continuation wins by 8), blocks obvious captures.
-4. **UI core** — Board/Pit/Seed rendering, click + keyboard interaction, animated sowing & captures, score bar, turn indicator, move log, undo, new game.
+4. **UI core** — Board/Pit/Stone rendering, click + keyboard interaction, animated sowing & captures, score bar, turn indicator, move log, undo, new game.
 5. **Menus & modes** — main menu, vs AI with difficulty select, hotseat, rules modal, Kalah(6,4)/(6,6) toggle.
 6. **Polish** — wooden theme + light/dark, responsive/mobile touch, ARIA + keyboard nav, reduced-motion support, optional sounds, PWA manifest, deploy.
 7. **Online multiplayer (phase 2)** — see "Online play" section below.
