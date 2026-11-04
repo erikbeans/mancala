@@ -15,7 +15,13 @@ export default function MoveLog({ ctl }: { ctl: Controller }) {
       <ol>
         {moves.map((m, i) => (
           <li key={i}>
-            {mode === 'ai' ? (m.player === 0 ? 'You' : 'AI') : m.player === 0 ? 'South' : 'North'}
+            {mode === 'ai'
+              ? m.player === 0
+                ? 'You'
+                : 'AI'
+              : m.player === 0
+                ? 'Player 1'
+                : 'Player 2'}
             {' → pit '}
             {m.pit + 1}
           </li>

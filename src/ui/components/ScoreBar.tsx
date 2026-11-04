@@ -1,43 +1,40 @@
+import type { Player } from '../../engine/types'
 import type { Controller } from '../hooks/useGame'
 
 export default function ScoreBar({ ctl }: { ctl: Controller }) {
   const { state, thinking, mode, difficulty, pending } = ctl
-  const you = state.board[6]
-  const opp = state.board[13]
-  const turnName =
-    pending
-      ? 'Moving stones…'
-      : state.status === 'finished'
-      ? state.winner === 'draw'
+  const name = (p: Player): string =>
+    mode === 'ai' ? (p === 0 ? 'You' : 'Computer') : `Player ${p + 1}`
+
+  let turnName: string
+  if (pending) {
+    turnName = `${name(pending.base.currentPlayer)} chose pit ${pending.pit + 1}…`
+  } else if (state.status === 'finished') {
+    turnName =
+      state.winner === 'draw'
         ? "It's a draw!"
-        : state.winner === 0
-          ? mode === 'ai'
-            ? 'You win! 🎉'
-            : 'South wins! 🎉'
-          : mode === 'ai'
-            ? 'Computer wins'
-            : 'North wins! 🎉'
-      : mode === 'ai'
-        ? state.currentPlayer === 0
-          ? 'Your turn'
-          : 'Computer is thinking…'
-        : state.currentPlayer === 0
-          ? "South's turn"
-          : "North's turn"
+        : state.winner !== null
+          ? `${name(state.winner)} wins! 🎉`
+          : ''
+  } else if (mode === 'ai') {
+    turnName = state.currentPlayer === 0 ? 'Your turn' : 'Computer is thinking…'
+  } else {
+    turnName = `${name(state.currentPlayer)}'s turn`
+  }
 
   return (
     <div className="scorebar">
-      <div className={`score ${state.currentPlayer === 0 && state.status === 'playing' ? 'active' : ''}`}>
-        <span className="score-name">{mode === 'ai' ? 'You (South)' : 'South'}</span>
-        <span className="score-value">{you}</span>
+      <div className={`score ${state.currentPlayer === 0 && state.status === 'playing' && !pending ? 'active' : ''}`}>
+        <span className="score-name">{name(0)}</span>
+        <span className="score-value">{state.board[6]}</span>
       </div>
       <div className="turn-indicator">
         <span className={thinking ? 'thinking' : ''}>{turnName}</span>
         {mode === 'ai' && <span className="difficulty-badge">{difficulty}</span>}
       </div>
-      <div className={`score ${state.currentPlayer === 1 && state.status === 'playing' ? 'active' : ''}`}>
-        <span className="score-name">{mode === 'ai' ? 'Computer (North)' : 'North'}</span>
-        <span className="score-value">{opp}</span>
+      <div className={`score ${state.currentPlayer === 1 && state.status === 'playing' && !pending ? 'active' : ''}`}>
+        <span className="score-name">{name(1)}</span>
+        <span className="score-value">{state.board[13]}</span>
       </div>
     </div>
   )

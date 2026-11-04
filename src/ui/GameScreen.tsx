@@ -46,10 +46,10 @@ export default function GameScreen({ mode, difficulty, stones, onExit }: GameScr
               : state.winner === 0
                 ? ctl.mode === 'ai'
                   ? 'You win! 🎉'
-                  : 'South wins! 🎉'
+                  : 'Player 1 wins! 🎉'
                 : ctl.mode === 'ai'
                   ? 'The computer wins.'
-                  : 'North wins! 🎉'}{' '}
+                  : 'Player 2 wins! 🎉'}{' '}
             Final score: {state.board[6]} – {state.board[13]}
           </p>
           <button className="primary" onClick={onRestart}>

@@ -62,13 +62,15 @@ function stoneOffset(i: number, isStore: boolean): { dx: number; dy: number } {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-type Phase = 'sow' | 'capture' | 'sweep'
+type Phase = 'chosen' | 'sow' | 'capture' | 'sweep'
 
 interface Anim {
   phase: Phase
   from: number
   path: number[]
   stepMs: number
+  /** Board exactly as the move started (source pit still full). */
+  origBase: number[]
   /** Board after the source pit is emptied, before any sowing lands. */
   base: number[]
   /** Board after all sow stones have landed (pre-capture). */
@@ -110,7 +112,8 @@ export default function Board({ ctl, onPit }: BoardProps) {
     const cap = pending.events.find((e) => e.type === 'capture')
     const sweep = pending.events.find((e) => e.type === 'sweep')
 
-    const base = [...pending.base.board]
+    const origBase = [...pending.base.board]
+    const base = [...origBase]
     if (from >= 0) base[from] = 0
     const sowBoard = [...base]
     const arrivals = new Map<number, number>()
@@ -120,12 +123,14 @@ export default function Board({ ctl, onPit }: BoardProps) {
     }
     // Slow enough to track each stone, but cap the total time for big sows.
     const stepMs = Math.max(150, Math.min(320, Math.floor(3600 / Math.max(1, path.length))))
+    const chosenMs = 900
 
     setAnim({
-      phase: 'sow',
+      phase: 'chosen',
       from,
       path,
       stepMs,
+      origBase,
       base,
       sowBoard,
       arrivals,
@@ -134,6 +139,11 @@ export default function Board({ ctl, onPit }: BoardProps) {
     })
 
     void (async () => {
+      // Beat 1: show which pit was chosen before any stone moves.
+      await sleep(chosenMs)
+      if (cancelled) return
+      setAnim((a) => (a ? { ...a, phase: 'sow' } : a))
+      // Beat 2: stones fly one by one.
       await sleep(path.length * stepMs + stepMs)
       if (cancelled) return
       if (cap && cap.type === 'capture') {
@@ -159,6 +169,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
   /** Stones shown inside a pit right now (flying stones are rendered separately). */
   const displayCount = (pit: number): number => {
     if (!anim) return state.board[pit]
+    if (anim.phase === 'chosen') return anim.origBase[pit]
     if (anim.phase === 'sow') return anim.sowBoard[pit] - (anim.arrivals.get(pit) ?? 0)
     if (anim.phase === 'capture' && anim.cap) {
       if (pit === anim.cap.pit || pit === anim.cap.opposite) return 0
@@ -174,9 +185,8 @@ export default function Board({ ctl, onPit }: BoardProps) {
     return anim.sowBoard[pit]
   }
 
-  const pendingCapture = pending?.events.find((e) => e.type === 'capture')
   const lastCapture = lastEvents.find((e) => e.type === 'capture')
-  const cap = anim && anim.phase !== 'sow' && anim.cap ? anim.cap : pendingCapture && anim ? anim.cap : lastCapture
+  const cap = anim && anim.phase !== 'chosen' && anim.phase !== 'sow' && anim.cap ? anim.cap : lastCapture
   const capturedPits = new Set<number>()
   if (cap && cap.type === 'capture') {
     capturedPits.add(cap.pit)
@@ -199,11 +209,13 @@ export default function Board({ ctl, onPit }: BoardProps) {
     const playable = legalPits.includes(pit)
     const isStore = pit === 6 || pit === 13
     const captured = capturedPits.has(pit)
+    const chosen = !isStore && anim?.phase === 'chosen' && pit === anim.from
     const cls = [
       'pit',
       playable ? 'playable' : '',
       isStore ? 'store' : '',
       captured ? 'captured' : '',
+      chosen ? 'chosen' : '',
     ].join(' ')
     const label = isStore
       ? `Store for ${pit === 6 ? 'you' : 'opponent'}, ${count} stones`
@@ -246,6 +258,11 @@ export default function Board({ ctl, onPit }: BoardProps) {
         {!isStore && (
           <text x={x} y={y + PIT_RY + 18} className="pit-label" textAnchor="middle">
             {pit + 1}
+          </text>
+        )}
+        {chosen && (
+          <text x={x} y={y - PIT_RY - 12} className="chosen-marker" textAnchor="middle">
+            ▼
           </text>
         )}
       </g>
@@ -353,7 +370,9 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
       {legalPits.length > 0 && (
         <text x={W / 2} y={H - 12} className="turn-hint" textAnchor="middle">
-          Your move — pick a glowing pit (1–6, or use Tab + Enter)
+          {ctl.mode === 'ai'
+            ? 'Your move — pick a glowing pit (1–6, or use Tab + Enter)'
+            : `Player ${state.currentPlayer + 1}'s move — pick a glowing pit (Tab + Enter)`}
         </text>
       )}
     </svg>
