@@ -1,11 +1,13 @@
 import type { Controller } from '../hooks/useGame'
 
 export default function ScoreBar({ ctl }: { ctl: Controller }) {
-  const { state, thinking, mode, difficulty } = ctl
+  const { state, thinking, mode, difficulty, pending } = ctl
   const you = state.board[6]
   const opp = state.board[13]
   const turnName =
-    state.status === 'finished'
+    pending
+      ? 'Moving stones…'
+      : state.status === 'finished'
       ? state.winner === 'draw'
         ? "It's a draw!"
         : state.winner === 0

@@ -196,15 +196,18 @@ button.primary:hover {
 }
 .pit.playable .pit-shape {
   stroke: var(--playable);
-  stroke-width: 4;
-  filter: drop-shadow(0 0 10px rgba(255, 217, 122, 0.8));
+  animation: pit-pulse 1.5s ease-in-out infinite;
 }
 .pit.playable {
   cursor: pointer;
 }
+/* Hover / keyboard focus: solid, brighter glow to say "choose this one". */
+.pit.playable:hover .pit-shape,
 .pit.playable:focus-visible .pit-shape {
-  stroke: #fff;
-  stroke-width: 5;
+  animation: none;
+  stroke: #fff3c4;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 16px rgba(255, 240, 190, 1));
 }
 .pit.captured .pit-shape {
   animation: capture-flash 0.9s ease;
@@ -224,10 +227,12 @@ button.primary:hover {
   font-size: 14px;
   pointer-events: none;
 }
-.sow-dot {
+.sow-dot-live {
   pointer-events: none;
-  opacity: 0;
-  animation: sow-hop 0.5s ease forwards;
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(255, 240, 190, 0.9));
+  animation: sow-pop 0.18s ease-out;
 }
 .extra-turn-banner {
   fill: var(--accent-strong);
@@ -242,21 +247,25 @@ button.primary:hover {
   pointer-events: none;
 }
 
-@keyframes sow-hop {
-  0% {
-    opacity: 0;
-    transform: translateY(14px) scale(0.6);
+@keyframes sow-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0.4;
   }
-  30% {
-    opacity: 1;
-    transform: translateY(0) scale(1.15);
-  }
-  70% {
+  to {
+    transform: scale(1);
     opacity: 1;
   }
+}
+@keyframes pit-pulse {
+  0%,
   100% {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.9);
+    stroke-width: 3.5px;
+    filter: drop-shadow(0 0 4px rgba(255, 217, 122, 0.4));
+  }
+  50% {
+    stroke-width: 5.5px;
+    filter: drop-shadow(0 0 14px rgba(255, 217, 122, 0.95));
   }
 }
 @keyframes capture-flash {
@@ -365,9 +374,14 @@ button.primary:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sow-dot,
+  .sow-dot-live,
   .pit.captured .pit-shape,
   .extra-turn-banner {
     animation-duration: 0.01s;
+  }
+  .pit.playable .pit-shape {
+    animation: none;
+    stroke-width: 4;
+    filter: drop-shadow(0 0 8px rgba(255, 217, 122, 0.7));
   }
 }

@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { legalMoves } from '../../engine/rules'
+import { useEffect, useRef, useState } from 'react'
+import { pitsOf } from '../../engine/rules'
 import type { Controller } from '../hooks/useGame'
 
 /**
@@ -12,6 +12,9 @@ export const W = 1000
 export const H = 440
 const PIT_RX = 56
 const PIT_RY = 50
+const STONE_R = 11
+const STORE_HALF_W = 46
+const STORE_HALF_H = 135
 const SOUTH_Y = 330
 const NORTH_Y = 110
 
@@ -24,14 +27,40 @@ export function pitCenter(index: number): { x: number; y: number } {
 
 const STONE_COLORS = ['#e8c47a', '#d9a45b', '#c98a4b', '#b5763f', '#e5d3a1', '#cf9455']
 
-function stoneOffset(n: number, i: number): { dx: number; dy: number } {
-  // Deterministic pseudo-random scatter inside the pit.
-  const cols = 4
-  const col = i % cols
-  const row = Math.floor(i / cols)
-  const jitter = ((n * 31 + i * 17) % 13) - 6
-  return { dx: (col - 1.5) * 26 + jitter * 0.6, dy: (row - 1) * 22 + jitter * 0.4 }
+/**
+ * Offset of stone i within its pit. The result is normalized so the whole
+ * stone (center + radius) stays fully inside the pit shape.
+ */
+function stoneOffset(i: number, isStore: boolean): { dx: number; dy: number } {
+  let dx: number
+  let dy: number
+  if (isStore) {
+    const col = i % 3
+    const row = Math.floor(i / 3)
+    dx = (col - 1) * 26
+    dy = (row - 1.5) * 34
+  } else {
+    const col = i % 4
+    const row = Math.floor(i / 4)
+    dx = (col - 1.5) * 26
+    dy = (row - 1) * 22
+  }
+  // Deterministic jitter so pits don't look like a perfect grid.
+  dx += (((i * 37) % 11) - 5) * 1.2
+  dy += (((i * 53) % 11) - 5) * 1.0
+  const limX = (isStore ? STORE_HALF_W : PIT_RX) - STONE_R - 3
+  const limY = (isStore ? STORE_HALF_H : PIT_RY) - STONE_R - 3
+  const q = (dx / limX) ** 2 + (dy / limY) ** 2
+  if (q > 1) {
+    const s = 1 / Math.sqrt(q)
+    dx *= s
+    dy *= s
+  }
+  return { dx, dy }
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const STEP_MS = 170
 
 interface BoardProps {
   ctl: Controller
@@ -39,16 +68,77 @@ interface BoardProps {
 }
 
 export default function Board({ ctl, onPit }: BoardProps) {
-  const { state, lastEvents, legalPits, isHumanTurn } = ctl
+  const { state, lastEvents, legalPits, pending } = ctl
+  const [anim, setAnim] = useState<{ board: number[]; step: number; path: number[] } | null>(null)
+  const ctlRef = useRef(ctl)
+  ctlRef.current = ctl
+  const [reduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
-  const sow = lastEvents.find((e) => e.type === 'sow')
-  const capture = lastEvents.find((e) => e.type === 'capture')
-  const extraTurn = lastEvents.some((e) => e.type === 'extra-turn')
+  // Animate a staged move: empty the source pit, drop one stone per path pit,
+  // then resolve capture / endgame sweep, then commit the real state.
+  useEffect(() => {
+    if (!pending) {
+      setAnim(null)
+      return
+    }
+    if (reduceMotion) {
+      ctlRef.current.commitMove()
+      return
+    }
+    let cancelled = false
+    const sow = pending.events.find((e) => e.type === 'sow')
+    const path = sow && sow.type === 'sow' ? sow.path : []
+    const from = sow && sow.type === 'sow' ? sow.from : -1
+    const board = [...pending.base.board]
+    if (from >= 0) board[from] = 0
+    setAnim({ board: [...board], step: -1, path })
+    void (async () => {
+      for (let i = 0; i < path.length; i++) {
+        await sleep(STEP_MS)
+        if (cancelled) return
+        board[path[i]] += 1
+        setAnim({ board: [...board], step: i, path })
+      }
+      const cap = pending.events.find((e) => e.type === 'capture')
+      if (cap && cap.type === 'capture') {
+        await sleep(STEP_MS * 1.5)
+        if (cancelled) return
+        board[cap.pit] = 0
+        board[cap.opposite] = 0
+        board[cap.store] += cap.count
+        setAnim({ board: [...board], step: path.length, path })
+      }
+      const sweep = pending.events.find((e) => e.type === 'sweep')
+      if (sweep && sweep.type === 'sweep') {
+        await sleep(STEP_MS * 1.5)
+        if (cancelled) return
+        for (const pit of pitsOf(sweep.side)) board[pit] = 0
+        board[sweep.store] += sweep.count
+        setAnim({ board: [...board], step: path.length + 1, path })
+      }
+      await sleep(STEP_MS * 2.5)
+      if (cancelled) return
+      setAnim(null)
+      ctlRef.current.commitMove()
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pending, reduceMotion])
 
-  const sowPath = useMemo(() => {
-    if (sow?.type !== 'sow') return []
-    return sow.path.map((p) => ({ pit: p, ...pitCenter(p) }))
-  }, [sow])
+  const board = anim ? anim.board : state.board
+
+  const pendingCapture = pending?.events.find((e) => e.type === 'capture')
+  const lastCapture = lastEvents.find((e) => e.type === 'capture')
+  const cap = anim && pendingCapture ? pendingCapture : lastCapture
+  const capturedPits = new Set<number>()
+  if (cap && cap.type === 'capture') {
+    capturedPits.add(cap.pit)
+    capturedPits.add(cap.opposite)
+  }
+  const extraTurn =
+    lastEvents.some((e) => e.type === 'extra-turn') ||
+    (pending?.events.some((e) => e.type === 'extra-turn') ?? false)
 
   const handleKey = (e: React.KeyboardEvent, pit: number) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -59,10 +149,10 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
   const renderPit = (pit: number) => {
     const { x, y } = pitCenter(pit)
-    const count = state.board[pit]
+    const count = board[pit]
     const playable = legalPits.includes(pit)
     const isStore = pit === 6 || pit === 13
-    const captured = capture?.type === 'capture' && (capture.pit === pit || capture.opposite === pit)
+    const captured = capturedPits.has(pit)
     const cls = [
       'pit',
       playable ? 'playable' : '',
@@ -85,18 +175,18 @@ export default function Board({ ctl, onPit }: BoardProps) {
         aria-disabled={!playable}
       >
         {isStore ? (
-          <rect x={x - 46} y={y - 135} width={92} height={270} rx={40} className="pit-shape" />
+          <rect x={x - STORE_HALF_W} y={y - STORE_HALF_H} width={STORE_HALF_W * 2} height={STORE_HALF_H * 2} rx={40} className="pit-shape" />
         ) : (
           <ellipse cx={x} cy={y} rx={PIT_RX} ry={PIT_RY} className="pit-shape" />
         )}
         {Array.from({ length: shown }, (_, i) => {
-          const { dx, dy } = stoneOffset(count, i)
+          const { dx, dy } = stoneOffset(i, isStore)
           return (
             <circle
               key={i}
               cx={x + dx}
               cy={y + dy}
-              r={11}
+              r={STONE_R}
               className="stone"
               fill={STONE_COLORS[(pit * 7 + i * 3 + count) % STONE_COLORS.length]}
             />
@@ -117,6 +207,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
   }
 
   const pits = [...Array(14).keys()]
+  const liveStone = anim && anim.step >= 0 && anim.step < anim.path.length ? anim.path[anim.step] : -1
 
   return (
     <svg
@@ -143,18 +234,20 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
       {pits.map(renderPit)}
 
-      {/* Sow animation: a stone traveling along the path of the last move. */}
-      {sowPath.map((p, i) => (
-        <circle
-          key={`${state.moveCount}-${p.pit}-${i}`}
-          cx={p.x}
-          cy={p.y}
-          r={10}
-          className="sow-dot"
-          style={{ animationDelay: `${i * 110}ms` }}
-          fill="#f4e3b2"
-        />
-      ))}
+      {/* The stone currently traveling during the sow animation. */}
+      {liveStone >= 0 && (() => {
+        const c = pitCenter(liveStone)
+        return (
+          <circle
+            key={anim!.step}
+            cx={c.x}
+            cy={c.y}
+            r={STONE_R}
+            className="sow-dot-live"
+            fill="#f4e3b2"
+          />
+        )
+      })()}
 
       {extraTurn && (
         <text x={W / 2} y={H / 2 + 8} className="extra-turn-banner" textAnchor="middle">
@@ -162,7 +255,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
         </text>
       )}
 
-      {isHumanTurn && legalMoves(state).length > 0 && (
+      {legalPits.length > 0 && (
         <text x={W / 2} y={H - 12} className="turn-hint" textAnchor="middle">
           Your move — pick a glowing pit (1–6, or use Tab + Enter)
         </text>

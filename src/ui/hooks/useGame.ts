@@ -11,11 +11,21 @@ export interface MoveEntry {
   pit: number
 }
 
+/** A move that has been computed but is still being animated on the board. */
+export interface PendingMove {
+  base: GameState
+  next: GameState
+  events: GameEvent[]
+  pit: number
+}
+
 export interface Controller {
   state: GameState
   lastEvents: GameEvent[]
   moves: MoveEntry[]
   thinking: boolean
+  /** Non-null while a move is being animated; input is locked then. */
+  pending: PendingMove | null
   mode: Mode
   difficulty: Difficulty
   /** In 'ai' mode the human always plays South (0). */
@@ -23,6 +33,8 @@ export interface Controller {
   isHumanTurn: boolean
   legalPits: number[]
   playPit: (pit: number) => void
+  /** Called by the board when the sowing animation has finished. */
+  commitMove: () => void
   undo: () => void
   canUndo: boolean
   restart: () => void
@@ -34,57 +46,70 @@ export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Cont
   const [moves, setMoves] = useState<MoveEntry[]>([])
   const [history, setHistory] = useState<GameState[]>([])
   const [thinking, setThinking] = useState(false)
+  const [pending, setPending] = useState<PendingMove | null>(null)
 
   const stateRef = useRef(state)
   stateRef.current = state
+  const pendingRef = useRef(pending)
+  pendingRef.current = pending
   const workerRef = useRef<Worker | null>(null)
 
   const humanPlayer: Player = 0
+
+  /** Compute a move and hold it for animation; the board commits it later. */
+  const stage = useCallback((pit: number): boolean => {
+    const cur = stateRef.current
+    if (cur.status !== 'playing' || pendingRef.current) return false
+    if (!legalMoves(cur).includes(pit)) return false
+    const { state: next, events } = applyMove(cur, pit)
+    setPending({ base: cur, next, events, pit })
+    return true
+  }, [])
+
+  const commitMove = useCallback(() => {
+    const p = pendingRef.current
+    if (!p) return
+    setPending(null)
+    setHistory((h) => [...h, p.base])
+    setMoves((m) => [...m, { player: p.base.currentPlayer, pit: p.pit }])
+    setLastEvents(p.events)
+    setState(p.next)
+  }, [])
 
   useEffect(() => {
     const worker = new Worker(new URL('../../ai.worker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
     worker.onmessage = (e: MessageEvent<{ move: number }>) => {
       setThinking(false)
-      const cur = stateRef.current
-      if (cur.status !== 'playing' || !legalMoves(cur).includes(e.data.move)) return
-      const { state: next, events } = applyMove(cur, e.data.move)
-      setHistory((h) => [...h, cur])
-      setMoves((m) => [...m, { player: cur.currentPlayer, pit: e.data.move }])
-      setLastEvents(events)
-      setState(next)
+      stage(e.data.move)
     }
     return () => worker.terminate()
-  }, [])
+  }, [stage])
 
-  // Trigger the AI whenever it's its turn.
+  // Trigger the AI whenever it's its turn and no animation is running.
   useEffect(() => {
     if (mode !== 'ai' || state.status !== 'playing') return
     if (state.currentPlayer === humanPlayer) return
+    if (pending) return
     setThinking(true)
     workerRef.current?.postMessage({
       state: serializeState(state),
       difficulty,
       jitter: difficulty === 'easy' ? 2 : 0,
     })
-  }, [state, mode, difficulty, humanPlayer])
+  }, [state, pending, mode, difficulty, humanPlayer])
 
   const playPit = useCallback(
     (pit: number) => {
-      const cur = stateRef.current
-      if (cur.status !== 'playing') return
-      if (mode === 'ai' && cur.currentPlayer !== humanPlayer) return
-      if (!legalMoves(cur).includes(pit)) return
-      const { state: next, events } = applyMove(cur, pit)
-      setHistory((h) => [...h, cur])
-      setMoves((m) => [...m, { player: cur.currentPlayer, pit }])
-      setLastEvents(events)
-      setState(next)
+      if (mode === 'ai' && stateRef.current.currentPlayer !== humanPlayer) return
+      stage(pit)
     },
-    [mode, humanPlayer],
+    [mode, humanPlayer, stage],
   )
 
   const undo = useCallback(() => {
+    setPending(null)
+    setThinking(false)
     setHistory((h) => {
       if (h.length === 0) return h
       // In AI mode, keep undoing until it's the human's turn again.
@@ -99,7 +124,6 @@ export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Cont
       setMoves((m) => m.slice(0, h.length - rest.length))
       setLastEvents([])
       setState(next)
-      setThinking(false)
       return rest
     })
   }, [mode, humanPlayer])
@@ -110,10 +134,11 @@ export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Cont
     setMoves([])
     setLastEvents([])
     setThinking(false)
+    setPending(null)
   }, [stones])
 
   const isHumanTurn =
-    state.status === 'playing' && (mode === 'hotseat' || state.currentPlayer === humanPlayer)
+    state.status === 'playing' && !pending && (mode === 'hotseat' || state.currentPlayer === humanPlayer)
   const legalPits = isHumanTurn ? legalMoves(state) : []
 
   return {
@@ -121,12 +146,14 @@ export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Cont
     lastEvents,
     moves,
     thinking,
+    pending,
     mode,
     difficulty,
     humanPlayer,
     isHumanTurn,
     legalPits,
     playPit,
+    commitMove,
     undo,
     canUndo: history.length > 0,
     restart,

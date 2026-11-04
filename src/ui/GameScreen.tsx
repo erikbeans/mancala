@@ -3,15 +3,20 @@ import MoveLog from './components/MoveLog'
 import RulesModal from './components/RulesModal'
 import ScoreBar from './components/ScoreBar'
 import { useState } from 'react'
-import type { Controller } from './hooks/useGame'
+import { useGame, type Mode } from './hooks/useGame'
+import type { Difficulty } from '../engine/ai'
 
 interface GameScreenProps {
-  ctl: Controller
+  mode: Mode
+  difficulty: Difficulty
+  stones: 4 | 6
   onExit: () => void
-  onRestart: () => void
 }
 
-export default function GameScreen({ ctl, onExit, onRestart }: GameScreenProps) {
+export default function GameScreen({ mode, difficulty, stones, onExit }: GameScreenProps) {
+  // Remounting (via key in App) resets the game when the config changes.
+  const ctl = useGame(mode, difficulty, stones)
+  const onRestart = ctl.restart
   const [showRules, setShowRules] = useState(false)
   const { state } = ctl
 
