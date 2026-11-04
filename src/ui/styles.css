@@ -227,12 +227,13 @@ button.primary:hover {
   font-size: 14px;
   pointer-events: none;
 }
-.sow-dot-live {
+.flying-stone {
   pointer-events: none;
-  transform-box: fill-box;
-  transform-origin: center;
-  filter: drop-shadow(0 0 6px rgba(255, 240, 190, 0.9));
-  animation: sow-pop 0.18s ease-out;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 5px rgba(255, 240, 190, 0.55));
+  animation-name: stone-fly;
+  animation-duration: var(--dur, 280ms);
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  animation-fill-mode: both;
 }
 .extra-turn-banner {
   fill: var(--accent-strong);
@@ -247,14 +248,15 @@ button.primary:hover {
   pointer-events: none;
 }
 
-@keyframes sow-pop {
-  from {
-    transform: scale(0.4);
-    opacity: 0.4;
+@keyframes stone-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
   }
-  to {
-    transform: scale(1);
-    opacity: 1;
+  55% {
+    transform: translate(calc(var(--tx) * 0.55), calc(var(--ty) * 0.55 - 34px)) scale(1.08);
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(1);
   }
 }
 @keyframes pit-pulse {
@@ -374,7 +376,7 @@ button.primary:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sow-dot-live,
+  .flying-stone,
   .pit.captured .pit-shape,
   .extra-turn-banner {
     animation-duration: 0.01s;

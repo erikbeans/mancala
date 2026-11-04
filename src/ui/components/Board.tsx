@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { pitsOf } from '../../engine/rules'
+import type { GameEvent } from '../../engine/types'
 import type { Controller } from '../hooks/useGame'
 
 /**
@@ -60,7 +61,23 @@ function stoneOffset(i: number, isStore: boolean): { dx: number; dy: number } {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-const STEP_MS = 170
+
+type Phase = 'sow' | 'capture' | 'sweep'
+
+interface Anim {
+  phase: Phase
+  from: number
+  path: number[]
+  stepMs: number
+  /** Board after the source pit is emptied, before any sowing lands. */
+  base: number[]
+  /** Board after all sow stones have landed (pre-capture). */
+  sowBoard: number[]
+  /** How many sow stones target each pit (they're rendered as flying stones). */
+  arrivals: Map<number, number>
+  cap?: Extract<GameEvent, { type: 'capture' }>
+  sweep?: Extract<GameEvent, { type: 'sweep' }>
+}
 
 interface BoardProps {
   ctl: Controller
@@ -69,13 +86,14 @@ interface BoardProps {
 
 export default function Board({ ctl, onPit }: BoardProps) {
   const { state, lastEvents, legalPits, pending } = ctl
-  const [anim, setAnim] = useState<{ board: number[]; step: number; path: number[] } | null>(null)
+  const [anim, setAnim] = useState<Anim | null>(null)
   const ctlRef = useRef(ctl)
   ctlRef.current = ctl
   const [reduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
-  // Animate a staged move: empty the source pit, drop one stone per path pit,
-  // then resolve capture / endgame sweep, then commit the real state.
+  // Animate a staged move: every stone flies individually from the source pit
+  // to its target (staggered), then capture / sweep play out, then the real
+  // state is committed.
   useEffect(() => {
     if (!pending) {
       setAnim(null)
@@ -89,34 +107,46 @@ export default function Board({ ctl, onPit }: BoardProps) {
     const sow = pending.events.find((e) => e.type === 'sow')
     const path = sow && sow.type === 'sow' ? sow.path : []
     const from = sow && sow.type === 'sow' ? sow.from : -1
-    const board = [...pending.base.board]
-    if (from >= 0) board[from] = 0
-    setAnim({ board: [...board], step: -1, path })
+    const cap = pending.events.find((e) => e.type === 'capture')
+    const sweep = pending.events.find((e) => e.type === 'sweep')
+
+    const base = [...pending.base.board]
+    if (from >= 0) base[from] = 0
+    const sowBoard = [...base]
+    const arrivals = new Map<number, number>()
+    for (const p of path) {
+      sowBoard[p]++
+      arrivals.set(p, (arrivals.get(p) ?? 0) + 1)
+    }
+    // Slow enough to track each stone, but cap the total time for big sows.
+    const stepMs = Math.max(150, Math.min(320, Math.floor(3600 / Math.max(1, path.length))))
+
+    setAnim({
+      phase: 'sow',
+      from,
+      path,
+      stepMs,
+      base,
+      sowBoard,
+      arrivals,
+      cap: cap && cap.type === 'capture' ? cap : undefined,
+      sweep: sweep && sweep.type === 'sweep' ? sweep : undefined,
+    })
+
     void (async () => {
-      for (let i = 0; i < path.length; i++) {
-        await sleep(STEP_MS)
-        if (cancelled) return
-        board[path[i]] += 1
-        setAnim({ board: [...board], step: i, path })
-      }
-      const cap = pending.events.find((e) => e.type === 'capture')
+      await sleep(path.length * stepMs + stepMs)
+      if (cancelled) return
       if (cap && cap.type === 'capture') {
-        await sleep(STEP_MS * 1.5)
+        setAnim((a) => (a ? { ...a, phase: 'capture' } : a))
+        await sleep(Math.min(cap.count, 12) * 90 + 600)
         if (cancelled) return
-        board[cap.pit] = 0
-        board[cap.opposite] = 0
-        board[cap.store] += cap.count
-        setAnim({ board: [...board], step: path.length, path })
       }
-      const sweep = pending.events.find((e) => e.type === 'sweep')
       if (sweep && sweep.type === 'sweep') {
-        await sleep(STEP_MS * 1.5)
+        setAnim((a) => (a ? { ...a, phase: 'sweep' } : a))
+        await sleep(900)
         if (cancelled) return
-        for (const pit of pitsOf(sweep.side)) board[pit] = 0
-        board[sweep.store] += sweep.count
-        setAnim({ board: [...board], step: path.length + 1, path })
       }
-      await sleep(STEP_MS * 2.5)
+      await sleep(stepMs * 2)
       if (cancelled) return
       setAnim(null)
       ctlRef.current.commitMove()
@@ -126,11 +156,27 @@ export default function Board({ ctl, onPit }: BoardProps) {
     }
   }, [pending, reduceMotion])
 
-  const board = anim ? anim.board : state.board
+  /** Stones shown inside a pit right now (flying stones are rendered separately). */
+  const displayCount = (pit: number): number => {
+    if (!anim) return state.board[pit]
+    if (anim.phase === 'sow') return anim.sowBoard[pit] - (anim.arrivals.get(pit) ?? 0)
+    if (anim.phase === 'capture' && anim.cap) {
+      if (pit === anim.cap.pit || pit === anim.cap.opposite) return 0
+      // Captured stones are rendered as flying stones until commit.
+      if (pit === anim.cap.store) return anim.sowBoard[pit]
+      return anim.sowBoard[pit]
+    }
+    if (anim.phase === 'sweep' && anim.sweep) {
+      if (pit === anim.sweep.store) return anim.sowBoard[pit] + anim.sweep.count
+      if (pitsOf(anim.sweep.side).includes(pit)) return 0
+      return anim.sowBoard[pit]
+    }
+    return anim.sowBoard[pit]
+  }
 
   const pendingCapture = pending?.events.find((e) => e.type === 'capture')
   const lastCapture = lastEvents.find((e) => e.type === 'capture')
-  const cap = anim && pendingCapture ? pendingCapture : lastCapture
+  const cap = anim && anim.phase !== 'sow' && anim.cap ? anim.cap : pendingCapture && anim ? anim.cap : lastCapture
   const capturedPits = new Set<number>()
   if (cap && cap.type === 'capture') {
     capturedPits.add(cap.pit)
@@ -149,7 +195,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
   const renderPit = (pit: number) => {
     const { x, y } = pitCenter(pit)
-    const count = board[pit]
+    const count = displayCount(pit)
     const playable = legalPits.includes(pit)
     const isStore = pit === 6 || pit === 13
     const captured = capturedPits.has(pit)
@@ -188,7 +234,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
               cy={y + dy}
               r={STONE_R}
               className="stone"
-              fill={STONE_COLORS[(pit * 7 + i * 3 + count) % STONE_COLORS.length]}
+              fill={STONE_COLORS[(pit * 7 + i * 3) % STONE_COLORS.length]}
             />
           )
         })}
@@ -206,8 +252,70 @@ export default function Board({ ctl, onPit }: BoardProps) {
     )
   }
 
+  const flyStyle = (tx: number, ty: number, delayMs: number, durMs: number): React.CSSProperties =>
+    ({
+      '--tx': `${tx}px`,
+      '--ty': `${ty}px`,
+      '--dur': `${durMs}ms`,
+      animationDelay: `${delayMs}ms`,
+    }) as React.CSSProperties
+
+  // Individual stones flying from the source pit to their target pits.
+  const renderSowStones = () => {
+    if (!anim || anim.phase !== 'sow' || anim.from < 0) return null
+    const src = pitCenter(anim.from)
+    const seen = new Map<number, number>()
+    const flyMs = Math.round(anim.stepMs * 0.85)
+    return anim.path.map((p, i) => {
+      const isStore = p === 6 || p === 13
+      const idx = anim.base[p] + (seen.get(p) ?? 0)
+      seen.set(p, (seen.get(p) ?? 0) + 1)
+      const c = pitCenter(p)
+      const off = stoneOffset(idx, isStore)
+      return (
+        <circle
+          key={i}
+          cx={src.x}
+          cy={src.y}
+          r={STONE_R}
+          className="flying-stone"
+          fill={STONE_COLORS[(p * 7 + idx * 3) % STONE_COLORS.length]}
+          style={flyStyle(c.x + off.dx - src.x, c.y + off.dy - src.y, i * anim.stepMs, flyMs)}
+        />
+      )
+    })
+  }
+
+  // Captured stones flying into the store.
+  const renderCaptureStones = () => {
+    if (!anim || anim.phase !== 'capture' || !anim.cap) return null
+    const cap = anim.cap
+    const storeC = pitCenter(cap.store)
+    const out: React.ReactNode[] = []
+    const mk = (fromPit: number, n: number, startIdx: number) => {
+      const c = pitCenter(fromPit)
+      for (let i = 0; i < n; i++) {
+        const idx = startIdx + i
+        const off = stoneOffset(idx, true)
+        out.push(
+          <circle
+            key={`${fromPit}-${i}`}
+            cx={c.x}
+            cy={c.y}
+            r={STONE_R}
+            className="flying-stone"
+            fill={STONE_COLORS[(cap.store * 7 + idx * 3) % STONE_COLORS.length]}
+            style={flyStyle(storeC.x + off.dx - c.x, storeC.y + off.dy - c.y, out.length * 90, 500)}
+          />,
+        )
+      }
+    }
+    mk(cap.pit, 1, anim.sowBoard[cap.store])
+    mk(cap.opposite, Math.min(cap.count - 1, 11), anim.sowBoard[cap.store] + 1)
+    return out
+  }
+
   const pits = [...Array(14).keys()]
-  const liveStone = anim && anim.step >= 0 && anim.step < anim.path.length ? anim.path[anim.step] : -1
 
   return (
     <svg
@@ -234,20 +342,8 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
       {pits.map(renderPit)}
 
-      {/* The stone currently traveling during the sow animation. */}
-      {liveStone >= 0 && (() => {
-        const c = pitCenter(liveStone)
-        return (
-          <circle
-            key={anim!.step}
-            cx={c.x}
-            cy={c.y}
-            r={STONE_R}
-            className="sow-dot-live"
-            fill="#f4e3b2"
-          />
-        )
-      })()}
+      {renderSowStones()}
+      {renderCaptureStones()}
 
       {extraTurn && (
         <text x={W / 2} y={H / 2 + 8} className="extra-turn-banner" textAnchor="middle">
