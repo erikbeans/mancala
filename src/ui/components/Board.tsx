@@ -98,6 +98,16 @@ export default function Board({ ctl, onPit }: BoardProps) {
   ctlRef.current = ctl
   const [reduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
+  // Online seat 1 sees the board rotated 180° so their own pits sit at the
+  // bottom. Computed per-pit (not an SVG transform) so labels stay upright.
+  const flip = ctl.mode === 'online' && ctl.seat === 1
+  /** Screen position of a pit: physical position, or rotated 180° when flipped. */
+  const view = (pit: number): { x: number; y: number } => {
+    if (!flip) return pitCenter(pit)
+    const c = pitCenter(pit)
+    return { x: W - c.x, y: H - c.y }
+  }
+
   // Animate a staged move: highlight the chosen pit, fly every stone
   // individually to its target, play out capture / sweep, then commit.
   useEffect(() => {
@@ -237,7 +247,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
   }
 
   const renderPit = (pit: number) => {
-    const { x, y } = pitCenter(pit)
+    const { x, y } = view(pit)
     const count = displayCount(pit)
     const playable = legalPits.includes(pit)
     const isStore = pit === 6 || pit === 13
@@ -325,14 +335,14 @@ export default function Board({ ctl, onPit }: BoardProps) {
   // Individual stones flying from the source pit to their target pits.
   const renderSowStones = () => {
     if (!anim || anim.phase !== 'sow' || anim.from < 0) return null
-    const src = pitCenter(anim.from)
+    const src = view(anim.from)
     const seen = new Map<number, number>()
     const flyMs = Math.round(anim.stepMs * 0.85)
     return anim.path.map((p, i) => {
       const isStore = p === 6 || p === 13
       const idx = anim.base[p] + (seen.get(p) ?? 0)
       seen.set(p, (seen.get(p) ?? 0) + 1)
-      const c = pitCenter(p)
+      const c = view(p)
       const off = stoneOffset(idx, isStore)
       return (
         <circle
@@ -352,10 +362,10 @@ export default function Board({ ctl, onPit }: BoardProps) {
   const renderCaptureStones = () => {
     if (!anim || anim.phase !== 'capture' || !anim.cap) return null
     const capEv = anim.cap
-    const storeC = pitCenter(capEv.store)
+    const storeC = view(capEv.store)
     const out: React.ReactNode[] = []
     const mk = (fromPit: number, n: number, startIdx: number) => {
-      const c = pitCenter(fromPit)
+      const c = view(fromPit)
       for (let i = 0; i < n; i++) {
         const idx = startIdx + i
         const off = stoneOffset(idx, true)
@@ -381,9 +391,9 @@ export default function Board({ ctl, onPit }: BoardProps) {
   const renderSweepStones = () => {
     if (!anim || anim.phase !== 'sweep' || !anim.sweep) return null
     const sw = anim.sweep
-    const storeC = pitCenter(sw.store)
+    const storeC = view(sw.store)
     return anim.sweepFlying.map((f, i) => {
-      const c = pitCenter(f.from)
+      const c = view(f.from)
       const off = stoneOffset(f.storeIdx, true)
       return (
         <circle

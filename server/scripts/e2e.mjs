@@ -247,6 +247,19 @@ async function runTests() {
   const lobbyB = await B.waitFor((m) => m.t === 'lobby' && m.players.length === 2, 3000, 'lobby with 2 players')
   ok(lobbyB.players.every((p) => p.connected), 'lobby shows both players connected')
 
+  console.log('rename')
+  A.send({ t: 'rename', name: 'Alicia' })
+  const lobbyR = await B.waitFor(
+    (m) => m.t === 'lobby' && m.players.find((p) => p.seat === 0)?.name === 'Alicia',
+    3000,
+    'lobby after rename',
+  )
+  ok(lobbyR.players.find((p) => p.seat === 0)?.name === 'Alicia', 'rename broadcast to the other player')
+  A.inbox.length = 0 // only look at fresh messages below
+  A.send({ t: 'rename', name: '   ' })
+  const lobbyBlank = await A.waitFor((m) => m.t === 'lobby', 3000, 'lobby after blank rename')
+  ok(lobbyBlank.players.find((p) => p.seat === 0)?.name === 'Alicia', 'blank rename keeps the old name')
+
   console.log('moves are server-authoritative')
   A.send({ t: 'move', pit: 0 })
   const st1a = await A.waitFor((m) => m.t === 'state', 3000, 'state after move')
@@ -274,6 +287,13 @@ async function runTests() {
   C.send({ t: 'move', pit: 0 })
   const errC = await C.waitFor((m) => m.t === 'error', 3000, 'error for spectator move')
   ok(/Spectator/.test(errC.message), 'spectator move rejected')
+  A.inbox.length = 0 // only look at fresh messages below
+  C.send({ t: 'rename', name: 'Eve' })
+  const lobbySpec = await A.waitFor((m) => m.t === 'lobby', 3000, 'lobby re-broadcast after spectator rename')
+  ok(
+    lobbySpec.players.every((p) => p.name !== 'Eve'),
+    'spectator cannot rename a seat',
+  )
 
   console.log('autoplay full game to completion')
   const players = [A, B]

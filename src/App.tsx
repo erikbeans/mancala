@@ -17,26 +17,30 @@ export interface Config {
 
 const ROOM_RE = /^[A-Z2-9]{6}$/
 
-/** Invite links look like /?room=ABC123 — auto-join on load. */
+/** Invite links look like /?room=ABC123 — they pre-fill the online join form. */
 function roomFromLocation(): string | null {
   const raw = new URLSearchParams(window.location.search).get('room')?.toUpperCase() ?? ''
   return ROOM_RE.test(raw) ? raw : null
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(() => (roomFromLocation() ? 'game' : 'menu'))
+  // An invite link opens the menu with online mode + room code pre-filled, so
+  // the invited player can set their name before joining.
+  const inviteCode = roomFromLocation()
+  const [screen, setScreen] = useState<Screen>('menu')
   const [showRules, setShowRules] = useState(false)
   const [config, setConfig] = useState<Config>(() => ({
-    mode: roomFromLocation() ? 'online' : 'ai',
+    mode: 'ai',
     difficulty: 'medium',
     stones: 6,
-    room: roomFromLocation() ?? undefined,
   }))
 
   return (
     <main className="app">
       {screen === 'menu' ? (
         <Menu
+          initialMode={inviteCode ? 'online' : 'ai'}
+          initialCode={inviteCode ?? ''}
           onStart={(cfg) => {
             setConfig(cfg)
             setScreen('game')

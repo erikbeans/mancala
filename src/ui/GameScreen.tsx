@@ -2,7 +2,7 @@ import Board from './components/Board'
 import MoveLog from './components/MoveLog'
 import RulesModal from './components/RulesModal'
 import ScoreBar from './components/ScoreBar'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useGame, type Controller, type Mode } from './hooks/useGame'
 import { useOnlineGame, type OnlineController } from './hooks/useOnlineGame'
 import type { Difficulty } from '../engine/ai'
@@ -41,6 +41,43 @@ function LocalGameScreen({
 function OnlineGameScreen({ room, stones, onExit }: { room: string; stones: 4 | 6; onExit: () => void }) {
   const ctl = useOnlineGame(room, stones)
   return <GameView ctl={ctl} onExit={onExit} online={ctl} />
+}
+
+/** Inline name editor: commit on blur/Enter, revert on Escape. */
+function EditableName({ name, onCommit }: { name: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(name)
+  const lastName = useRef(name)
+  if (lastName.current !== name) {
+    // Server-side name changed (rename echo) — resync the draft.
+    lastName.current = name
+    setDraft(name)
+  }
+  const commit = () => {
+    const cleaned = draft.trim().slice(0, 24)
+    if (cleaned && cleaned !== name) onCommit(cleaned)
+    else setDraft(name)
+  }
+  return (
+    <input
+      className="name-input"
+      value={draft}
+      maxLength={24}
+      aria-label="Your name (edit any time)"
+      title="Click to edit your name"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+          ;(e.target as HTMLInputElement).blur()
+        } else if (e.key === 'Escape') {
+          setDraft(name)
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+    />
+  )
 }
 
 function GameView({ ctl, onExit, online }: { ctl: Controller; onExit: () => void; online?: OnlineController }) {
@@ -107,7 +144,11 @@ function GameView({ ctl, onExit, online }: { ctl: Controller; onExit: () => void
           <span className="online-players">
             {online!.players.map((p) => (
               <span key={p.seat} className={`online-player ${p.connected ? '' : 'offline'}`}>
-                {p.name}
+                {p.seat === online!.seat ? (
+                  <EditableName name={p.name} onCommit={(v) => online!.rename(v)} />
+                ) : (
+                  p.name
+                )}
                 {p.seat === online!.seat ? ' (you)' : ''}
                 {!p.connected ? ' — disconnected' : ''}
               </span>

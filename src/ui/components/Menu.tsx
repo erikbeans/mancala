@@ -9,11 +9,15 @@ const ROOM_RE = /^[A-Z2-9]{6}$/
 interface MenuProps {
   onStart: (config: Config) => void
   onRules: () => void
+  /** Pre-selected mode (an invite link ?room=CODE selects online). */
+  initialMode?: 'ai' | 'hotseat' | 'online'
+  /** Pre-filled room code (from an invite link ?room=CODE). */
+  initialCode?: string
 }
 
-export default function Menu({ onStart, onRules }: MenuProps) {
-  const [mode, setMode] = useState<'ai' | 'hotseat' | 'online'>('ai')
-  const [code, setCode] = useState('')
+export default function Menu({ onStart, onRules, initialMode = 'ai', initialCode = '' }: MenuProps) {
+  const [mode, setMode] = useState<'ai' | 'hotseat' | 'online'>(initialMode)
+  const [code, setCode] = useState(initialCode)
   const [name, setName] = useState(storedPlayerName())
   // FormData(form) doesn't include the submitter button, so track it via clicks.
   const actionRef = useRef<'start' | 'create' | 'join'>('start')

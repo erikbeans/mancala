@@ -9,6 +9,7 @@ import {
   FORFEIT_GRACE_MS,
   joinRoom,
   playersInfo,
+  renamePlayer,
   requestRematch,
   roomFromJSON,
   roomToJSON,
@@ -88,6 +89,19 @@ describe('room logic', () => {
     expect(seatOf(room, A)).toBe(1) // swapped
     expect(seatOf(room, B)).toBe(0)
     expect(deserializeState(room.game)).toEqual(createGame(6))
+  })
+
+  it('renames a seated player and broadcasts via lobby', () => {
+    const room = twoPlayerRoom()
+    expect(renamePlayer(room, A, 'Alicia')).toBe(true)
+    expect(room.players[0]!.name).toBe('Alicia')
+    expect(playersInfo(room).find((p) => p.seat === 0)!.name).toBe('Alicia')
+    // spectators cannot rename
+    joinRoom(room, 'token-c', 'Carol')
+    expect(renamePlayer(room, 'token-c', ' Eve ')).toBe(false)
+    // empty name keeps the old one
+    renamePlayer(room, A, '   ')
+    expect(room.players[0]!.name).toBe('Alicia')
   })
 
   it('round-trips through JSON for DO storage', () => {

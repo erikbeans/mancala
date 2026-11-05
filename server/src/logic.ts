@@ -115,6 +115,16 @@ export function forfeitIfExpired(
   return { forfeitedSeat: null }
 }
 
+/** Update a seated player's display name (no-op for spectators). */
+export function renamePlayer(room: RoomState, token: string, name: string): boolean {
+  const seat = seatOf(room, token)
+  if (seat === null) return false
+  const p = room.players[seat]!
+  const cleaned = name.slice(0, 24).trim()
+  if (cleaned) room.players[seat] = { ...p, name: cleaned }
+  return true
+}
+
 /** Both players must accept a rematch; seats swap and the board resets. */
 export function requestRematch(room: RoomState, token: string): { reset: boolean } {
   if (seatOf(room, token) === null) return { reset: false }

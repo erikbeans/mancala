@@ -9,6 +9,7 @@ import {
   FORFEIT_GRACE_MS,
   joinRoom,
   playersInfo,
+  renamePlayer,
   requestRematch,
   roomFromJSON,
   roomToJSON,
@@ -111,6 +112,11 @@ export class MancalaRoom extends DurableObject<Env> {
         }
         await this.persist()
         this.broadcastState(room, outcome.events, outcome.lastMove)
+        return
+      }
+      case 'rename': {
+        if (renamePlayer(room, token, msg.name)) await this.persist()
+        this.broadcastLobby()
         return
       }
       case 'rematch': {

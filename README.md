@@ -10,7 +10,7 @@ A browser implementation of Kalah, the most popular Western mancala variant, bui
 - 6-stone and 4-stone variants (Kalah(6,6) / Kalah(6,4))
 - Animated stone sowing, captures, extra turns; wooden board theme; keyboard + screen-reader accessible
 - Pure, framework-agnostic game engine in `src/engine/` (also used for tests and for server-side move validation in online play)
-- Online multiplayer: 6-char room codes, invite links (`?room=CODE`), spectators, reconnect with a 60s grace period, then win-by-forfeit; rematch swaps seats. Server is a Cloudflare Worker + Durable Object (`server/`), fully authoritative — it validates every move with the shared engine. No undo online.
+- Online multiplayer: 6-char room codes, invite links (`?room=CODE` — opening one shows the join form pre-filled with the code and a name field, so the invited player picks their name before joining; names stay editable in the online bar via the `rename` message), spectators, reconnect with a 60s grace period, then win-by-forfeit; rematch swaps seats. The seat-1 player sees the board flipped 180° so their pits are at the bottom. Server is a Cloudflare Worker + Durable Object (`server/`), fully authoritative — it validates every move with the shared engine. No undo online.
 
 ## Rules implemented
 
@@ -34,9 +34,11 @@ npm run dev        # wrangler dev on http://localhost:8787
 npm run e2e        # spawns its own wrangler dev and runs the full WS e2e suite
 ```
 
-Then in the app menu choose **Play online** → **Create room** (or open the copied
-invite link in another browser/tab to join). The frontend talks to
-`ws://localhost:8787` automatically in local dev.
+Then in the app menu choose **Play online** → **Create room**, and share the
+**Copy invite link** URL — opening it in another browser/tab brings up the
+online join form with the room code pre-filled and a name field, so the
+invited player chooses their name and then clicks **Join room**. The frontend
+talks to `ws://localhost:8787` automatically in local dev.
 
 ### Deploy the server (one-time setup, already done for this repo)
 

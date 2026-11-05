@@ -40,6 +40,8 @@ export interface Controller {
   restart: () => void
   /** Optional custom player naming (online mode: You / opponent's name). */
   nameOf?: (p: Player) => string
+  /** Online mode: my seat (null = spectator). Seat 1 gets a flipped board view. */
+  seat?: Player | null
 }
 
 export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Controller {

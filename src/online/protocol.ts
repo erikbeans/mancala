@@ -11,6 +11,7 @@ export interface PlayerInfo {
 export type ClientMessage =
   | { t: 'hello'; name: string; token: string }
   | { t: 'move'; pit: number }
+  | { t: 'rename'; name: string }
   | { t: 'rematch' }
   | { t: 'leave' }
 

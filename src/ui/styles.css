@@ -160,6 +160,22 @@ button.primary:hover {
   color: var(--muted);
   font-style: italic;
 }
+.name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  width: 120px;
+  padding: 1px 6px;
+}
+.name-input:hover,
+.name-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-soft);
+  outline: none;
+}
 .notices {
   position: fixed;
   bottom: 16px;

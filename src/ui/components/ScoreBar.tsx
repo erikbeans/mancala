@@ -6,6 +6,10 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
   const { state, thinking, mode, difficulty, pending, legalPits } = ctl
   const name = (p: Player): string =>
     ctl.nameOf?.(p) ?? (mode === 'ai' ? (p === 0 ? 'You' : 'Computer') : `Player ${p + 1}`)
+  const possessive = (p: Player): string => {
+    const n = name(p)
+    return n === 'You' ? 'Your' : `${n}'s`
+  }
 
   let turnName: string
   if (pending) {
@@ -30,7 +34,13 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
     <div className="scorebar">
       <div className={`score ${state.currentPlayer === 0 && state.status === 'playing' && !pending ? 'active' : ''}`}>
         <span className="score-name">{name(0)}</span>
-        <span className="score-value">{state.board[6]}</span>
+        <span
+          className="score-value"
+          title="Score — stones in this store"
+          aria-label={`${possessive(0)} score: ${state.board[6]} stones in store`}
+        >
+          {state.board[6]}
+        </span>
       </div>
       <div className="turn-indicator">
         <span className={thinking ? 'thinking' : ''}>{turnName}</span>
@@ -38,7 +48,13 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
       </div>
       <div className={`score ${state.currentPlayer === 1 && state.status === 'playing' && !pending ? 'active' : ''}`}>
         <span className="score-name">{name(1)}</span>
-        <span className="score-value">{state.board[13]}</span>
+        <span
+          className="score-value"
+          title="Score — stones in this store"
+          aria-label={`${possessive(1)} score: ${state.board[13]} stones in store`}
+        >
+          {state.board[13]}
+        </span>
       </div>
     </div>
   )

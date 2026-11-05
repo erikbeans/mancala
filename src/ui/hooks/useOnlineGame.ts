@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createGame, legalMoves } from '../../engine/rules'
 import { deserializeState } from '../../engine/serialize'
 import type { GameEvent, GameState, Player } from '../../engine/types'
-import { defaultPlayerName, OnlineClient } from '../../online/client'
+import { defaultPlayerName, OnlineClient, savePlayerName } from '../../online/client'
 import type { PlayerInfo, ServerMessage } from '../../online/protocol'
 import type { Controller, MoveEntry, PendingMove } from './useGame'
 
@@ -16,6 +16,8 @@ export interface OnlineController extends Controller {
   notices: string[]
   rematchRequested: boolean
   sendRematch: () => void
+  /** Change my display name (broadcast to the room via lobby). */
+  rename: (name: string) => void
   dismissNotice: (index: number) => void
   inviteUrl: string
   opponentName: string
@@ -152,6 +154,13 @@ export function useOnlineGame(room: string, stones: 4 | 6): OnlineController {
     clientRef.current?.send({ t: 'rematch' })
   }, [])
 
+  const rename = useCallback((name: string) => {
+    const cleaned = name.trim().slice(0, 24)
+    if (!cleaned) return
+    savePlayerName(cleaned)
+    clientRef.current?.send({ t: 'rename', name: cleaned })
+  }, [])
+
   const dismissNotice = useCallback((index: number) => {
     setNotices((n) => n.filter((_, i) => i !== index))
   }, [])
@@ -199,6 +208,7 @@ export function useOnlineGame(room: string, stones: 4 | 6): OnlineController {
     notices,
     rematchRequested,
     sendRematch,
+    rename,
     dismissNotice,
     inviteUrl,
     opponentName,
