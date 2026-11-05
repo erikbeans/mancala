@@ -49,9 +49,16 @@ export default function GameScreen({ mode, difficulty, stones, onExit }: GameScr
                   : 'Player 1 wins! 🎉'
                 : ctl.mode === 'ai'
                   ? 'The computer wins.'
-                  : 'Player 2 wins! 🎉'}{' '}
-            Final score: {state.board[6]} – {state.board[13]}
+                  : 'Player 2 wins! 🎉'}
           </p>
+          <div
+            className="final-score"
+            aria-label={`Final score: ${state.board[6]} to ${state.board[13]}`}
+          >
+            <span>{state.board[6]}</span>
+            <span className="final-score-dash">–</span>
+            <span>{state.board[13]}</span>
+          </div>
           <button className="primary" onClick={onRestart}>
             Play again
           </button>

@@ -245,6 +245,12 @@ button.primary:hover {
   font-weight: 800;
   pointer-events: none;
 }
+.store-count {
+  fill: var(--muted);
+  font-size: 22px;
+  font-weight: 800;
+  pointer-events: none;
+}
 .pit-label {
   fill: var(--muted);
   font-size: 14px;
@@ -360,6 +366,19 @@ button.primary:hover {
 }
 .game-over-banner p {
   margin: 0;
+}
+.final-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 44px;
+  font-weight: 900;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+.final-score-dash {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 /* ---------- Modal ---------- */

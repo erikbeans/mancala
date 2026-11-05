@@ -1,5 +1,6 @@
 import type { Player } from '../../engine/types'
 import type { Controller } from '../hooks/useGame'
+import { pitLabel } from '../labels'
 
 export default function ScoreBar({ ctl }: { ctl: Controller }) {
   const { state, thinking, mode, difficulty, pending } = ctl
@@ -8,7 +9,7 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
 
   let turnName: string
   if (pending) {
-    turnName = `${name(pending.base.currentPlayer)} chose pit ${pending.pit + 1}…`
+    turnName = `${name(pending.base.currentPlayer)} chose pit ${pitLabel(pending.pit)}…`
   } else if (state.status === 'finished') {
     turnName =
       state.winner === 'draw'

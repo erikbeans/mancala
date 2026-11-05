@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Controller } from '../hooks/useGame'
+import { pitLabel } from '../labels'
 
 export default function MoveLog({ ctl }: { ctl: Controller }) {
   const { moves, mode } = ctl
@@ -23,7 +24,7 @@ export default function MoveLog({ ctl }: { ctl: Controller }) {
                 ? 'Player 1'
                 : 'Player 2'}
             {' → pit '}
-            {m.pit + 1}
+            {pitLabel(m.pit)}
           </li>
         ))}
       </ol>
