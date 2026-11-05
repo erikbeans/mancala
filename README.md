@@ -2,6 +2,8 @@
 
 A browser implementation of Kalah, the most popular Western mancala variant, built with Vite + React + TypeScript.
 
+**Live:** https://about.clickbeans.com/mancala/ (also https://erikbeans.github.io/mancala/) — deployed automatically to GitHub Pages on every push to `main`. Online multiplayer works there too, backed by a Cloudflare Worker (`wss://mancala-server.eggplant-match.workers.dev`, temporary preview — see "Deploy the server" below for a permanent one).
+
 ## Features
 
 - Play vs the computer (easy / medium / hard — alpha-beta minimax in a Web Worker) or hotseat two-player
