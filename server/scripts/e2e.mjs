@@ -17,13 +17,16 @@ import WebSocket from 'ws'
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 // Random port per run so a leftover dev server on a fixed port can't hijack the test.
 const PORT = Number(process.env.E2E_PORT ?? 8800 + Math.floor(Math.random() * 100))
-const BASE = process.env.E2E_WS ?? `ws://localhost:${PORT}`
-const HTTP = `http://localhost:${PORT}`
+// Set E2E_WS to test a deployed worker instead of spawning local wrangler dev
+// (forfeit grace then defaults to the production 60s).
+const REMOTE = process.env.E2E_WS ?? null
+const BASE = REMOTE ?? `ws://localhost:${PORT}`
+const HTTP = REMOTE ? REMOTE.replace(/^ws/, 'http') : `http://localhost:${PORT}`
 // Fresh room per run: DO storage persists between runs, so reuse would collide.
 const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const ROOM =
   'E2E' + Array.from({ length: 3 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join('')
-const GRACE_MS = 3000
+const GRACE_MS = Number(process.env.E2E_GRACE_MS ?? (REMOTE ? 60000 : 3000))
 
 let failures = 0
 const ok = (cond, label) => {
@@ -172,6 +175,11 @@ async function startServer() {
 }
 
 async function main() {
+  if (REMOTE) {
+    console.log(`e2e against deployed worker ${REMOTE} (grace ${GRACE_MS}ms)…`)
+    await runTests()
+    return
+  }
   console.log(`starting wrangler dev on port ${PORT} (grace ${GRACE_MS}ms)…`)
   const server = await startServer()
   try {
