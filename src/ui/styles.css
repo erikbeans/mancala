@@ -101,6 +101,85 @@ button.primary:hover {
   gap: 10px;
   margin-top: 8px;
 }
+.join-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.join-row input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+.menu input[name='name'] {
+  width: 160px;
+}
+
+/* ---------- Online bar ---------- */
+.online-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 14px;
+}
+.conn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.conn-dot.on {
+  background: #4caf50;
+  box-shadow: 0 0 6px #4caf50;
+}
+.conn-dot.off {
+  background: #e0a030;
+  box-shadow: 0 0 6px #e0a030;
+}
+.online-status {
+  color: var(--muted);
+}
+.room-code strong {
+  letter-spacing: 3px;
+  font-size: 16px;
+}
+.online-players {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.online-player.offline {
+  color: var(--muted);
+  font-style: italic;
+}
+.notices {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 30;
+}
+.notice {
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
 
 /* ---------- Game screen ---------- */
 .game-header {

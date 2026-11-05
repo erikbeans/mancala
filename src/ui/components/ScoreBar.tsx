@@ -3,9 +3,9 @@ import type { Controller } from '../hooks/useGame'
 import { pitLabel } from '../labels'
 
 export default function ScoreBar({ ctl }: { ctl: Controller }) {
-  const { state, thinking, mode, difficulty, pending } = ctl
+  const { state, thinking, mode, difficulty, pending, legalPits } = ctl
   const name = (p: Player): string =>
-    mode === 'ai' ? (p === 0 ? 'You' : 'Computer') : `Player ${p + 1}`
+    ctl.nameOf?.(p) ?? (mode === 'ai' ? (p === 0 ? 'You' : 'Computer') : `Player ${p + 1}`)
 
   let turnName: string
   if (pending) {
@@ -19,6 +19,9 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
           : ''
   } else if (mode === 'ai') {
     turnName = state.currentPlayer === 0 ? 'Your turn' : 'Computer is thinking…'
+  } else if (mode === 'online') {
+    // legalPits is non-empty only on my own turn (spectators never have any).
+    turnName = legalPits.length > 0 ? 'Your turn' : `${name(state.currentPlayer)}'s turn`
   } else {
     turnName = `${name(state.currentPlayer)}'s turn`
   }

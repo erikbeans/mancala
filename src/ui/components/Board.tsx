@@ -251,7 +251,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
       chosen ? 'chosen' : '',
     ].join(' ')
     const label = isStore
-      ? `Store for ${pit === 6 ? 'you' : 'opponent'}, ${count} stones`
+      ? `Store for ${ctl.nameOf ? ctl.nameOf(pit === 6 ? 0 : 1) : pit === 6 ? 'you' : 'opponent'}, ${count} stones`
       : `Pit ${pitLabel(pit)}, ${count} stones${playable ? ', playable' : ''}`
     const shown = Math.min(count, 12)
     return (
@@ -438,8 +438,8 @@ export default function Board({ ctl, onPit }: BoardProps) {
 
       {legalPits.length > 0 && (
         <text x={W / 2} y={H - 12} className="turn-hint" textAnchor="middle">
-          {ctl.mode === 'ai'
-            ? 'Your move — pick a glowing pit (1–6, or use Tab + Enter)'
+          {ctl.mode === 'ai' || ctl.mode === 'online'
+            ? 'Your move — pick a glowing pit (Tab + Enter)'
             : `Player ${state.currentPlayer + 1}'s move — pick a glowing pit (Tab + Enter)`}
         </text>
       )}

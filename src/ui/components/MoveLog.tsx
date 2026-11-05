@@ -9,6 +9,9 @@ export default function MoveLog({ ctl }: { ctl: Controller }) {
     ref.current?.scrollTo({ top: ref.current.scrollHeight })
   }, [moves.length])
 
+  const name = (p: 0 | 1): string =>
+    ctl.nameOf?.(p) ?? (mode === 'ai' ? (p === 0 ? 'You' : 'AI') : `Player ${p + 1}`)
+
   return (
     <div className="movelog" ref={ref} aria-label="Move history">
       <h2>Moves</h2>
@@ -16,13 +19,7 @@ export default function MoveLog({ ctl }: { ctl: Controller }) {
       <ol>
         {moves.map((m, i) => (
           <li key={i}>
-            {mode === 'ai'
-              ? m.player === 0
-                ? 'You'
-                : 'AI'
-              : m.player === 0
-                ? 'Player 1'
-                : 'Player 2'}
+            {name(m.player)}
             {' → pit '}
             {pitLabel(m.pit)}
           </li>

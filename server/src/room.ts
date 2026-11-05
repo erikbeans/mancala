@@ -30,8 +30,12 @@ const STORAGE_KEY = 'room'
  */
 export class MancalaRoom extends DurableObject<Env> {
   private room: RoomState | null = null
-  /** WebSocket -> player token. */
-  private sockets = new Map<WebSocket, string>()
+
+  /** Token attached to a socket. Survives DO hibernation (unlike a Map). */
+  private tokenOf(ws: WebSocket): string | null {
+    const t = ws.deserializeAttachment()
+    return typeof t === 'string' && t.length > 0 ? t : null
+  }
 
   private async load(): Promise<RoomState> {
     if (!this.room) {
@@ -76,7 +80,7 @@ export class MancalaRoom extends DurableObject<Env> {
     if (msg.t === 'hello') {
       const token = msg.token.slice(0, 64)
       const name = msg.name.slice(0, 24) || 'Player'
-      this.sockets.set(ws, token)
+      ws.serializeAttachment(token)
       const seat = joinRoom(room, token, name)
       await this.persist()
       this.send(ws, {
@@ -92,7 +96,7 @@ export class MancalaRoom extends DurableObject<Env> {
       return
     }
 
-    const token = this.sockets.get(ws)
+    const token = this.tokenOf(ws)
     if (!token) {
       this.send(ws, { t: 'error', message: 'Send hello first' })
       return
@@ -135,14 +139,17 @@ export class MancalaRoom extends DurableObject<Env> {
   }
 
   private async handleClose(ws: WebSocket): Promise<void> {
-    const token = this.sockets.get(ws)
-    this.sockets.delete(ws)
+    const token = this.tokenOf(ws)
     try {
       ws.close()
     } catch {
       // already closed
     }
     if (!token || !this.room) return
+    // Another socket may still hold the same identity (e.g. a stale duplicate
+    // tab) — only mark the player disconnected when the last one is gone.
+    const stillConnected = this.ctx.getWebSockets().some((s) => s !== ws && this.tokenOf(s) === token)
+    if (stillConnected) return
     const wasPlayer = seatOf(this.room, token) !== null
     disconnectToken(this.room, token, Date.now())
     await this.persist()
@@ -204,7 +211,7 @@ export class MancalaRoom extends DurableObject<Env> {
   ): void {
     for (const ws of this.ctx.getWebSockets()) {
       if (ws.readyState !== WebSocket.OPEN) continue
-      const token = this.sockets.get(ws)
+      const token = this.tokenOf(ws)
       ws.send(
         JSON.stringify({
           t: 'state',

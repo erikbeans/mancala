@@ -4,7 +4,7 @@ import { applyMove, createGame, legalMoves } from '../../engine/rules'
 import { serializeState } from '../../engine/serialize'
 import type { GameEvent, GameState, Player } from '../../engine/types'
 
-export type Mode = 'ai' | 'hotseat'
+export type Mode = 'ai' | 'hotseat' | 'online'
 
 export interface MoveEntry {
   player: Player
@@ -38,6 +38,8 @@ export interface Controller {
   undo: () => void
   canUndo: boolean
   restart: () => void
+  /** Optional custom player naming (online mode: You / opponent's name). */
+  nameOf?: (p: Player) => string
 }
 
 export function useGame(mode: Mode, difficulty: Difficulty, stones: 4 | 6): Controller {
