@@ -1,0 +1,15 @@
+name = "mancala-server"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "MancalaRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MancalaRoom"]
+
+[vars]
+# FORFEIT_GRACE_MS = "60000"  # disconnect grace before win-by-forfeit; default is 60s.
+# For the local e2e test, run: wrangler dev --port 8787 --var FORFEIT_GRACE_MS=3000
