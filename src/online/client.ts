@@ -10,8 +10,9 @@ export function onlineWsUrl(): string {
   if (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     return `ws://${location.hostname}:8787`
   }
-  // Permanent game server (see README: `wrangler login && wrangler deploy` in server/).
-  return 'wss://mancala-server.erikbeans.workers.dev'
+  // Permanent game server on a custom domain (see README: worker route
+  // api.clickbeans.com/* -> mancala-server in the Cloudflare dashboard).
+  return 'wss://api.clickbeans.com'
 }
 
 export interface OnlineHandlers {

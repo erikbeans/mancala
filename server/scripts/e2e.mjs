@@ -10,9 +10,49 @@
  */
 import { spawn } from 'node:child_process'
 import { writeFileSync, rmSync } from 'node:fs'
+import dns from 'node:dns'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
+
+/**
+ * DNS lookup that falls back to DNS-over-HTTPS (1.1.1.1) when the system
+ * resolver has a stale negative cache — handy right after adding a record.
+ */
+function lookupWithDoH(hostname, options, callback) {
+  if (typeof options === 'function') {
+    callback = options
+    options = {}
+  }
+  const wrap = (err, ip, family) => {
+    if (err || !ip) return callback(err || new Error(`ENOTFOUND ${hostname}`))
+    // Node's happy-eyeballs path expects an array when options.all is set.
+    if (options.all) return callback(null, [{ address: ip, family }])
+    callback(null, ip, family)
+  }
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (!err) {
+      if (options.all && Array.isArray(address)) return callback(null, address)
+      return wrap(null, address, family)
+    }
+    dohLookup(hostname).then(
+      (ip) => wrap(null, ip, 4),
+      () => wrap(err),
+    )
+  })
+}
+
+async function dohLookup(hostname) {
+  try {
+    const res = await fetch(`https://1.1.1.1/dns-query?name=${encodeURIComponent(hostname)}&type=A`, {
+      headers: { accept: 'application/dns-json' },
+    })
+    const j = await res.json()
+    return (j.Answer || []).find((a) => a.type === 1)?.data ?? null
+  } catch {
+    return null
+  }
+}
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 // Random port per run so a leftover dev server on a fixed port can't hijack the test.
@@ -57,7 +97,7 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(`${BASE}/room/${ROOM}`)
+      this.ws = new WebSocket(`${BASE}/room/${ROOM}`, { lookup: lookupWithDoH })
       this.ws.on('open', () => {
         this.ws.send(JSON.stringify({ t: 'hello', name: this.name, token: this.token }))
       })

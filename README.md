@@ -2,7 +2,7 @@
 
 A browser implementation of Kalah, the most popular Western mancala variant, built with Vite + React + TypeScript.
 
-**Live:** https://about.clickbeans.com/mancala/ (also https://erikbeans.github.io/mancala/) — deployed automatically to GitHub Pages on every push to `main`. Online multiplayer works there too, backed by the Cloudflare Worker at **wss://mancala-server.erikbeans.workers.dev**.
+**Live:** https://about.clickbeans.com/mancala/ (also https://erikbeans.github.io/mancala/) — deployed automatically to GitHub Pages on every push to `main`. Online multiplayer works there too, backed by the Cloudflare Worker at **wss://api.clickbeans.com** (custom-domain route; also reachable at wss://mancala-server.erikbeans.workers.dev).
 
 ## Features
 
@@ -48,9 +48,12 @@ npx wrangler deploy          # deploys to https://<name>.<subdomain>.workers.dev
 ```
 
 This repo's worker is deployed at `https://mancala-server.erikbeans.workers.dev`
-(wss:// for WebSockets). After deploying your own, point the frontend at it:
+and exposed on the custom domain **https://api.clickbeans.com** via a worker
+route `api.clickbeans.com/*` + a proxied DNS record (both set up in the
+Cloudflare dashboard for zone `clickbeans.com`). The frontend uses
+`wss://api.clickbeans.com`. After deploying your own, point the frontend at it:
 
-- set the GitHub repo variable `VITE_ONLINE_WS_URL=wss://<your-worker>.workers.dev`
+- set the GitHub repo variable `VITE_ONLINE_WS_URL=wss://<your-host>`
   (Settings → Variables → Actions) so Pages builds bake it in, and
 - update the fallback constant in `src/online/client.ts`.
 
