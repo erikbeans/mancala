@@ -23,6 +23,10 @@ export interface OnlineHandlers {
 const TOKEN_KEY = 'mancala:token'
 const NAME_KEY = 'mancala:name'
 
+// In-memory fallback: keeps the identity stable for the lifetime of the page
+// even if storage is unavailable (private mode, blocked storage, sandboxed tab).
+let memToken: string | null = null
+
 /**
  * Stable per-tab identity so a reconnect (or reload) reclaims the same seat.
  * sessionStorage (not localStorage) so that opening an invite link in a
@@ -30,20 +34,39 @@ const NAME_KEY = 'mancala:name'
  * of the same tab keeps the seat.
  */
 export function playerToken(): string {
-  let t = sessionStorage.getItem(TOKEN_KEY)
+  if (memToken) return memToken
+  let t: string | null = null
+  try {
+    t = sessionStorage.getItem(TOKEN_KEY)
+  } catch {
+    t = null
+  }
   if (!t) {
     t = crypto.randomUUID()
-    sessionStorage.setItem(TOKEN_KEY, t)
+    try {
+      sessionStorage.setItem(TOKEN_KEY, t)
+    } catch {
+      // storage unavailable — memToken still keeps this page session stable
+    }
   }
+  memToken = t
   return t
 }
 
 export function storedPlayerName(): string {
-  return localStorage.getItem(NAME_KEY) ?? ''
+  try {
+    return localStorage.getItem(NAME_KEY) ?? ''
+  } catch {
+    return ''
+  }
 }
 
 export function savePlayerName(name: string): void {
-  localStorage.setItem(NAME_KEY, name)
+  try {
+    localStorage.setItem(NAME_KEY, name)
+  } catch {
+    // ignore
+  }
 }
 
 export function defaultPlayerName(): string {
