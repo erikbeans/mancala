@@ -10,8 +10,8 @@ export function onlineWsUrl(): string {
   if (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     return `ws://${location.hostname}:8787`
   }
-  // Deployed game server (see README: `wrangler deploy` in server/).
-  return 'wss://mancala-server.eggplant-match.workers.dev'
+  // Permanent game server (see README: `wrangler login && wrangler deploy` in server/).
+  return 'wss://mancala-server.erikbeans.workers.dev'
 }
 
 export interface OnlineHandlers {

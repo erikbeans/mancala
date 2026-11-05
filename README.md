@@ -2,7 +2,7 @@
 
 A browser implementation of Kalah, the most popular Western mancala variant, built with Vite + React + TypeScript.
 
-**Live:** https://about.clickbeans.com/mancala/ (also https://erikbeans.github.io/mancala/) — deployed automatically to GitHub Pages on every push to `main`. Online multiplayer works there too, backed by a Cloudflare Worker (`wss://mancala-server.eggplant-match.workers.dev`, temporary preview — see "Deploy the server" below for a permanent one).
+**Live:** https://about.clickbeans.com/mancala/ (also https://erikbeans.github.io/mancala/) — deployed automatically to GitHub Pages on every push to `main`. Online multiplayer works there too, backed by the Cloudflare Worker at **wss://mancala-server.erikbeans.workers.dev**.
 
 ## Features
 
@@ -38,21 +38,23 @@ Then in the app menu choose **Play online** → **Create room** (or open the cop
 invite link in another browser/tab to join). The frontend talks to
 `ws://localhost:8787` automatically in local dev.
 
-### Deploy the server
+### Deploy the server (one-time setup, already done for this repo)
 
 ```bash
 cd server
-npx wrangler deploy          # deploys to <name>.workers.dev
+npm install
+npx wrangler login           # one-time OAuth login to your Cloudflare account
+npx wrangler deploy          # deploys to https://<name>.<subdomain>.workers.dev
 ```
 
-Then set the frontend's server URL at build time, e.g. in `.env`:
+This repo's worker is deployed at `https://mancala-server.erikbeans.workers.dev`
+(wss:// for WebSockets). After deploying your own, point the frontend at it:
 
-```
-VITE_ONLINE_WS_URL=wss://mancala-server.<your-subdomain>.workers.dev
-```
+- set the GitHub repo variable `VITE_ONLINE_WS_URL=wss://<your-worker>.workers.dev`
+  (Settings → Variables → Actions) so Pages builds bake it in, and
+- update the fallback constant in `src/online/client.ts`.
 
-(`src/online/client.ts` falls back to `ws://localhost:8787` on localhost and to
-`wss://mancala-server.erikbeans.workers.dev` otherwise — update that constant
-after deploying.)
+Locally the frontend uses `ws://localhost:8787` automatically; `.env` with
+`VITE_ONLINE_WS_URL=...` overrides everything.
 
 See `PLAN.md` for architecture and roadmap.
