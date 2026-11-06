@@ -2,7 +2,7 @@ import type { Player } from '../../engine/types'
 import type { Controller } from '../hooks/useGame'
 import { pitLabel } from '../labels'
 
-export default function ScoreBar({ ctl }: { ctl: Controller }) {
+export default function ScoreBar({ ctl, flash = false }: { ctl: Controller; flash?: boolean }) {
   const { state, thinking, mode, difficulty, pending, legalPits } = ctl
   const name = (p: Player): string =>
     ctl.nameOf?.(p) ?? (mode === 'ai' ? (p === 0 ? 'You' : 'Computer') : `Player ${p + 1}`)
@@ -42,7 +42,7 @@ export default function ScoreBar({ ctl }: { ctl: Controller }) {
           {state.board[6]}
         </span>
       </div>
-      <div className="turn-indicator">
+      <div className={`turn-indicator${flash ? ' turn-flash' : ''}`}>
         <span className={thinking ? 'thinking' : ''}>{turnName}</span>
         {mode === 'ai' && <span className="difficulty-badge">{difficulty}</span>}
       </div>

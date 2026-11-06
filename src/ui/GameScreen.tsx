@@ -2,9 +2,10 @@ import Board from './components/Board'
 import MoveLog from './components/MoveLog'
 import RulesModal from './components/RulesModal'
 import ScoreBar from './components/ScoreBar'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGame, type Controller, type Mode } from './hooks/useGame'
 import { useOnlineGame, type OnlineController } from './hooks/useOnlineGame'
+import { sfx } from '../sound'
 import type { Difficulty } from '../engine/ai'
 
 interface GameScreenProps {
@@ -83,8 +84,50 @@ function EditableName({ name, onCommit }: { name: string; onCommit: (v: string) 
 function GameView({ ctl, onExit, online }: { ctl: Controller; onExit: () => void; online?: OnlineController }) {
   const [showRules, setShowRules] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [soundOn, setSoundOn] = useState(() => sfx.isEnabled())
+  const [turnFlash, setTurnFlash] = useState(false)
   const { state } = ctl
   const isOnline = online !== undefined
+
+  // "Your turn" notification: chime + flash the turn indicator + bell in the
+  // tab title, each time a fresh turn starts for a human player.
+  const myTurn = ctl.legalPits.length > 0
+  const prevTurnRef = useRef(false)
+  useEffect(() => {
+    const rising = myTurn && !prevTurnRef.current
+    prevTurnRef.current = myTurn
+    if (rising) {
+      sfx.turn()
+      setTurnFlash(true)
+      const t = setTimeout(() => setTurnFlash(false), 1600)
+      return () => clearTimeout(t)
+    }
+  }, [myTurn])
+  useEffect(() => {
+    if (ctl.mode === 'hotseat') {
+      document.title =
+        state.status === 'playing' ? `Player ${state.currentPlayer + 1}'s turn · Mancala` : 'Mancala'
+    } else {
+      document.title = myTurn && state.status === 'playing' ? '🔔 Your turn · Mancala' : 'Mancala'
+    }
+  }, [myTurn, ctl.mode, state.status, state.currentPlayer])
+
+  // Win/lose stinger when the game finishes.
+  const prevStatusRef = useRef(state.status)
+  useEffect(() => {
+    if (prevStatusRef.current !== 'finished' && state.status === 'finished') {
+      const spectating = online !== undefined && online.seat === null
+      const iWon =
+        state.winner === 'draw' || spectating
+          ? null
+          : online
+            ? state.winner === online.seat
+            : state.winner === ctl.humanPlayer
+      if (iWon === true) sfx.win()
+      else if (iWon === false) sfx.lose()
+    }
+    prevStatusRef.current = state.status
+  }, [state.status, state.winner, online, ctl.humanPlayer])
 
   const copyInvite = async () => {
     try {
@@ -118,6 +161,13 @@ function GameView({ ctl, onExit, online }: { ctl: Controller; onExit: () => void
         <button onClick={onExit}>← Menu</button>
         <h1>Mancala</h1>
         <div className="game-actions">
+          <button
+            onClick={() => setSoundOn(sfx.toggle())}
+            aria-label={soundOn ? 'Mute sounds' : 'Unmute sounds'}
+            title={soundOn ? 'Mute sounds' : 'Unmute sounds'}
+          >
+            {soundOn ? '🔊' : '🔇'}
+          </button>
           {isOnline ? (
             <button onClick={online!.sendRematch} disabled={online!.rematchRequested}>
               {online!.rematchRequested ? 'Rematch requested…' : 'Rematch'}
@@ -158,7 +208,7 @@ function GameView({ ctl, onExit, online }: { ctl: Controller; onExit: () => void
           </span>
         </div>
       )}
-      <ScoreBar ctl={ctl} />
+      <ScoreBar ctl={ctl} flash={turnFlash} />
       <div className="game-main">
         <Board ctl={ctl} onPit={ctl.playPit} />
         <MoveLog ctl={ctl} />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { pitsOf } from '../../engine/rules'
 import type { GameEvent } from '../../engine/types'
+import { sfx } from '../../sound'
 import type { Controller } from '../hooks/useGame'
 import { pitLabel } from '../labels'
 
@@ -116,10 +117,14 @@ export default function Board({ ctl, onPit }: BoardProps) {
       return
     }
     if (reduceMotion) {
+      sfx.select()
       ctlRef.current.commitMove()
       return
     }
     let cancelled = false
+    // Sound timers mirroring the animation beats below.
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const later = (ms: number, fn: () => void) => timers.push(setTimeout(() => !cancelled && fn(), ms))
     const sow = pending.events.find((e) => e.type === 'sow')
     const path = sow && sow.type === 'sow' ? sow.path : []
     const from = sow && sow.type === 'sow' ? sow.from : -1
@@ -157,6 +162,15 @@ export default function Board({ ctl, onPit }: BoardProps) {
     // Slow enough to track each stone, but cap the total time for big sows.
     const stepMs = Math.max(150, Math.min(320, Math.floor(3600 / Math.max(1, path.length))))
     const chosenMs = 900
+    const flyMs = Math.round(stepMs * 0.85)
+
+    // Sounds: pit-select now, one plink per stone as it lands, then capture/sweep.
+    later(0, () => sfx.select())
+    path.forEach((p, i) => later(chosenMs + i * stepMs + flyMs, () => sfx.stone(p)))
+    const landAll = chosenMs + path.length * stepMs + stepMs
+    const capTime = cap ? Math.min(cap.count, 12) * 90 + 600 : 0
+    if (cap) later(landAll, () => sfx.capture())
+    if (sweep) later(landAll + capTime + 250, () => sfx.sweep())
 
     setAnim({
       phase: 'chosen',
@@ -198,6 +212,7 @@ export default function Board({ ctl, onPit }: BoardProps) {
     })()
     return () => {
       cancelled = true
+      timers.forEach(clearTimeout)
     }
   }, [pending, reduceMotion])
 
